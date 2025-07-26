@@ -1,6 +1,10 @@
 # Konfigurationsdateien
 config.php
 
+# Setup-Verzeichnis (nach Installation löschen)
+setup/
+setup.php
+
 # Logs
 logs/
 *.log
