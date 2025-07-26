@@ -14,35 +14,44 @@ set_error_handler(function($severity, $message, $file, $line) {
 });
 
 try {
-    require_once '../includes/init.php';
+    require_once '../config.php';
+    require_once '../includes/database.php';
+    require_once '../includes/functions.php';
+    require_once '../includes/logger.php';
+    
+    Logger::info('Events API initialized');
+    
 } catch (Exception $e) {
     ob_clean();
     header('Content-Type: application/json');
     http_response_code(500);
-    echo json_encode(['error' => 'Server configuration error']);
+    echo json_encode(['error' => 'Server configuration error: ' . $e->getMessage()]);
+    if (class_exists('Logger')) {
+        Logger::logException($e, ['api' => 'events', 'stage' => 'initialization']);
+    }
     exit;
 }
 
-// Rate Limiting
-checkApiRateLimit();
-
+$db = Database::getInstance();
 $method = $_SERVER['REQUEST_METHOD'];
 $input = json_decode(file_get_contents('php://input'), true) ?: $_REQUEST;
 
 try {
+    Logger::logApiRequest('events.php', $method, $input);
+    
     switch ($method) {
         case 'GET':
-            handleGetEvents();
+            handleGetEvents($db);
             break;
             
         case 'POST':
             $action = $input['action'] ?? '';
             switch ($action) {
                 case 'place_bet':
-                    handlePlaceBet($input);
+                    handlePlaceBet($input, $db);
                     break;
                 case 'get_user_bets':
-                    handleGetUserBets();
+                    handleGetUserBets($db);
                     break;
                 default:
                     sendErrorResponse('Ungültige Aktion');
@@ -53,73 +62,97 @@ try {
             sendErrorResponse('Method not allowed', 405);
     }
 } catch (Exception $e) {
-    writeLog('ERROR', 'Events API Error: ' . $e->getMessage(), ['method' => $method, 'input' => $input]);
+    Logger::logException($e, ['api' => 'events', 'method' => $method, 'input' => $input]);
     sendErrorResponse($e->getMessage());
 }
 
-function handleGetEvents() {
-    global $db;
-    
+function handleGetEvents($db) {
     $status = $_GET['status'] ?? 'active';
     $category = $_GET['category'] ?? '';
     $limit = min((int)($_GET['limit'] ?? 20), 50);
-    $offset = max((int)($_GET['offset'] ?? 0), 0);
     
-    $whereClause = ["e.status = :status"];
-    $params = ['status' => $status];
+    Logger::debug('Fetching events', [
+        'status' => $status,
+        'category' => $category,
+        'limit' => $limit
+    ]);
     
-    if (!empty($category)) {
-        $whereClause[] = "e.category = :category";
-        $params['category'] = $category;
-    }
-    
-    $whereSQL = implode(' AND ', $whereClause);
-    
-    // Hole Events
-    $events = $db->fetchAll("
-        SELECT 
-            e.*,
-            u.username as created_by_username,
-            COUNT(b.id) as total_bets_count,
-            SUM(b.amount) as total_bets_amount
-        FROM events e
-        LEFT JOIN users u ON e.created_by = u.id
-        LEFT JOIN bets b ON e.id = b.event_id
-        WHERE {$whereSQL}
-        GROUP BY e.id
-        ORDER BY e.start_date ASC
-        LIMIT :limit OFFSET :offset
-    ", array_merge($params, ['limit' => $limit, 'offset' => $offset]));
-    
-    // Hole Options für jedes Event
-    foreach ($events as &$event) {
-        $event['options'] = $db->fetchAll("
-            SELECT 
-                id, 
-                option_text, 
-                odds, 
-                total_bets_count, 
-                total_bets_amount 
-            FROM event_options 
-            WHERE event_id = :event_id 
-            ORDER BY id ASC
-        ", ['event_id' => $event['id']]);
+    try {
+        $sql = "
+            SELECT e.*,
+                   DATE_FORMAT(e.event_date, '%d.%m.%Y %H:%i') as formatted_event_date,
+                   DATE_FORMAT(e.created_at, '%d.%m.%Y') as formatted_created_date,
+                   u.username as creator_name
+            FROM events e
+            LEFT JOIN users u ON e.created_by = u.id
+            WHERE 1=1
+        ";
         
-        // Formatiere Daten
-        $event['formatted_start_date'] = formatDate($event['start_date']);
-        $event['formatted_end_date'] = formatDate($event['end_date']);
-        $event['is_active'] = isEventActive($event['end_date']);
-        $event['time_remaining'] = $event['is_active'] ? timeAgo($event['end_date']) : null;
+        $params = [];
+        
+        if ($status !== 'all') {
+            $sql .= " AND e.status = :status";
+            $params['status'] = $status;
+        }
+        
+        if ($category) {
+            $sql .= " AND e.category = :category";
+            $params['category'] = $category;
+        }
+        
+        $sql .= " ORDER BY e.event_date ASC, e.created_at DESC";
+        
+        if ($limit > 0) {
+            $sql .= " LIMIT :limit";
+            $params['limit'] = $limit;
+        }
+        
+        $events = $db->fetchAll($sql, $params);
+        
+        // Hole Event-Optionen für jedes Event
+        foreach ($events as &$event) {
+            $event['options'] = $db->fetchAll(
+                "SELECT * FROM event_options WHERE event_id = :event_id ORDER BY odds ASC",
+                ['event_id' => $event['id']]
+            );
+            
+            // Hole Wett-Statistiken
+            $betStats = $db->fetchOne(
+                "SELECT COUNT(*) as bet_count, SUM(amount) as total_amount FROM bets WHERE event_id = :event_id",
+                ['event_id' => $event['id']]
+            );
+            
+            $event['bet_count'] = (int)($betStats['bet_count'] ?? 0);
+            $event['total_bets'] = (int)($betStats['total_amount'] ?? 0);
+            
+            // Event-Status für Frontend
+            $event['is_upcoming'] = strtotime($event['event_date']) > time();
+            $event['is_live'] = strtotime($event['event_date']) <= time() && $event['status'] === 'active';
+        }
+        
+        Logger::info('Events fetched successfully', ['count' => count($events)]);
+        
+        sendSuccessResponse([
+            'events' => $events,
+            'total' => count($events)
+        ]);
+        
+    } catch (Exception $e) {
+        Logger::logException($e, ['context' => 'get_events']);
+        sendErrorResponse('Fehler beim Laden der Events');
     }
-    
-    sendSuccessResponse(['events' => $events]);
 }
 
-function handlePlaceBet($input) {
-    global $auth, $db;
+function handlePlaceBet($input, $db) {
+    session_start();
     
-    $auth->requireLogin();
-    $user = $auth->getCurrentUser();
+    // Auth check
+    if (!isset($_SESSION['user_id'])) {
+        sendErrorResponse('Nicht authentifiziert', 401);
+    }
+    
+    $userId = $_SESSION['user_id'];
+    $user = $db->fetchOne("SELECT * FROM users WHERE id = :id", ['id' => $userId]);
     
     $eventId = (int)($input['event_id'] ?? 0);
     $optionId = (int)($input['option_id'] ?? 0);
@@ -137,7 +170,7 @@ function handlePlaceBet($input) {
     // Prüfe Event
     $event = $db->fetchOne("
         SELECT * FROM events 
-        WHERE id = :id AND status = 'active' AND end_date > NOW()
+        WHERE id = :id AND status = 'active'
     ", ['id' => $eventId]);
     
     if (!$event) {
