@@ -1,0 +1,76 @@
+# Konfigurationsdateien
+config.php
+
+# Logs
+logs/
+*.log
+
+# Uploads
+uploads/
+temp/
+
+# Cache
+cache/
+*.cache
+
+# System Files
+.DS_Store
+Thumbs.db
+
+# Editor Files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Dependencies (falls später node_modules verwendet wird)
+node_modules/
+
+# Environment Files
+.env
+.env.local
+.env.production
+
+# Database Dumps
+*.sql.gz
+backup.sql
+dump.sql
+
+# Error Logs
+error_log
+php_errors.log
+
+# Temporary Files
+tmp/
+*.tmp
+
+# Composer (falls später verwendet)
+vendor/
+composer.lock
+
+# Backup Files
+backup/
+*.backup
+*.bak
+
+# OS Generated Files
+.DS_Store?
+ehthumbs.db
+Icon?
+
+# IDE Files
+nbproject/
+.buildpath
+.project
+.settings/
+
+# Runtime Files
+*.pid
+*.lock
+
+# Session Files
+sessions/
+
+# Email Templates (falls sensitive)
+email_templates/private/

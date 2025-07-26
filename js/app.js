@@ -7,76 +7,22 @@ const appState = {
     currentSection: 'home',
     events: [],
     leaderboard: [],
-    userBets: []
+    userBets: [],
+    loading: false
 };
 
-// Sample Data
-const sampleEvents = [
-    {
-        id: 1,
-        title: "Capital Bra vs. Apache 207 - Streaming Battle",
-        date: "2024-08-15",
-        description: "Wer erreicht mehr Streams in der ersten Woche?",
-        status: "active",
-        options: [
-            { id: 1, name: "Capital Bra", odds: 1.8 },
-            { id: 2, name: "Apache 207", odds: 2.1 }
-        ]
-    },
-    {
-        id: 2,
-        title: "18 Karat Album Release",
-        date: "2024-08-20",
-        description: "Wird das neue Album Platz 1 der Charts erreichen?",
-        status: "active",
-        options: [
-            { id: 1, name: "Ja, Platz 1", odds: 1.5 },
-            { id: 2, name: "Nein, nicht Platz 1", odds: 2.5 }
-        ]
-    },
-    {
-        id: 3,
-        title: "Bonez MC Tour 2024",
-        date: "2024-09-01",
-        description: "Wie viele ausverkaufte Shows wird die Tour haben?",
-        status: "active",
-        options: [
-            { id: 1, name: "Unter 10", odds: 3.0 },
-            { id: 2, name: "10-20", odds: 1.8 },
-            { id: 3, name: "Über 20", odds: 2.2 }
-        ]
-    }
-];
-
-const sampleLeaderboard = [
-    { rank: 1, username: "RapKing2024", points: 15420, wins: 87 },
-    { rank: 2, username: "HipHopFan", points: 12350, wins: 76 },
-    { rank: 3, username: "BeatsLover", points: 11280, wins: 69 },
-    { rank: 4, username: "GermanRapFan", points: 9870, wins: 58 },
-    { rank: 5, username: "MusicExpert", points: 8450, wins: 52 }
-];
+// API Base URL
+const API_BASE = 'api/';
 
 // Initialize App
 document.addEventListener('DOMContentLoaded', function() {
     initializeApp();
     setupEventListeners();
-    loadInitialData();
+    checkUserSession();
 });
 
 function initializeApp() {
-    // Load user data from localStorage
-    const savedUser = localStorage.getItem('rapmarket_user');
-    if (savedUser) {
-        appState.currentUser = JSON.parse(savedUser);
-        appState.userPoints = appState.currentUser.points || 1000; // Startpunkte
-        updateUserDisplay();
-    }
-    
-    // Set initial points if new user
-    if (!appState.currentUser) {
-        appState.userPoints = 1000;
-        updatePointsDisplay();
-    }
+    console.log('RapMarket.de initialized');
 }
 
 function setupEventListeners() {
@@ -94,11 +40,171 @@ function setupEventListeners() {
     if (loginForm) {
         loginForm.addEventListener('submit', function(e) {
             e.preventDefault();
-            login();
+            handleLogin();
         });
     }
 }
 
+// API Helper Functions
+async function apiRequest(endpoint, options = {}) {
+    const defaultOptions = {
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    };
+    
+    const config = { ...defaultOptions, ...options };
+    
+    if (config.body && typeof config.body === 'object') {
+        config.body = JSON.stringify(config.body);
+    }
+    
+    try {
+        const response = await fetch(API_BASE + endpoint, config);
+        const data = await response.json();
+        
+        if (!response.ok) {
+            throw new Error(data.error || 'API Fehler aufgetreten');
+        }
+        
+        return data;
+    } catch (error) {
+        console.error('API Request failed:', error);
+        throw error;
+    }
+}
+
+// Authentication Functions
+async function checkUserSession() {
+    try {
+        const response = await apiRequest('auth.php', {
+            method: 'POST',
+            body: { action: 'check_session' }
+        });
+        
+        if (response.logged_in) {
+            appState.currentUser = response.user;
+            appState.userPoints = response.user.points;
+            updateUserDisplay();
+        }
+    } catch (error) {
+        console.error('Session check failed:', error);
+    }
+}
+
+async function handleLogin() {
+    const username = document.getElementById('username').value.trim();
+    const password = document.getElementById('password').value;
+    const rememberMe = document.getElementById('rememberMe').checked;
+    
+    if (!username || !password) {
+        showAlert('Bitte fülle alle Felder aus!', 'danger');
+        return;
+    }
+    
+    setLoading(true);
+    
+    try {
+        const response = await apiRequest('auth.php', {
+            method: 'POST',
+            body: {
+                action: 'login',
+                username: username,
+                password: password,
+                remember_me: rememberMe
+            }
+        });
+        
+        appState.currentUser = response.user;
+        appState.userPoints = response.user.points;
+        
+        updateUserDisplay();
+        closeModal('loginModal');
+        
+        // Reset form
+        document.getElementById('loginForm').reset();
+        
+        showAlert(response.message, 'success');
+        
+    } catch (error) {
+        showAlert(error.message, 'danger');
+    } finally {
+        setLoading(false);
+    }
+}
+
+async function handleRegister() {
+    const username = document.getElementById('username').value.trim();
+    const email = document.getElementById('email') ? document.getElementById('email').value.trim() : '';
+    const password = document.getElementById('password').value;
+    const confirmPassword = document.getElementById('confirmPassword') ? document.getElementById('confirmPassword').value : password;
+    
+    if (!username || !password || (email && !email)) {
+        showAlert('Bitte fülle alle Felder aus!', 'danger');
+        return;
+    }
+    
+    if (password !== confirmPassword) {
+        showAlert('Passwörter stimmen nicht überein!', 'danger');
+        return;
+    }
+    
+    setLoading(true);
+    
+    try {
+        const response = await apiRequest('auth.php', {
+            method: 'POST',
+            body: {
+                action: 'register',
+                username: username,
+                email: email || `${username}@example.com`, // Fallback für Demo
+                password: password,
+                confirm_password: confirmPassword
+            }
+        });
+        
+        appState.currentUser = response.user;
+        appState.userPoints = response.user.points;
+        
+        updateUserDisplay();
+        closeModal('loginModal');
+        
+        // Reset form
+        document.getElementById('loginForm').reset();
+        
+        showAlert(response.message, 'success');
+        
+    } catch (error) {
+        showAlert(error.message, 'danger');
+    } finally {
+        setLoading(false);
+    }
+}
+
+async function handleLogout() {
+    try {
+        await apiRequest('auth.php', {
+            method: 'POST',
+            body: { action: 'logout' }
+        });
+        
+        appState.currentUser = null;
+        appState.userPoints = 0;
+        
+        updateUserDisplay();
+        showAlert('Erfolgreich abgemeldet!', 'success');
+        
+        // Navigate to home
+        navigateToSection('home');
+        
+    } catch (error) {
+        showAlert(error.message, 'danger');
+    }
+}
+
+// Navigation
 function navigateToSection(sectionName) {
     // Hide all sections
     document.querySelectorAll('.section-content, .hero-section').forEach(section => {
@@ -115,7 +221,7 @@ function navigateToSection(sectionName) {
     document.querySelectorAll('.nav-link').forEach(link => {
         link.classList.remove('active');
     });
-    document.querySelector(`[data-section="${sectionName}"]`).classList.add('active');
+    document.querySelector(`[data-section="${sectionName}"]`)?.classList.add('active');
     
     appState.currentSection = sectionName;
     
@@ -133,21 +239,29 @@ function navigateToSection(sectionName) {
     }
 }
 
-function loadInitialData() {
-    appState.events = sampleEvents;
-    appState.leaderboard = sampleLeaderboard;
-}
-
-function loadEvents() {
+// Events Functions
+async function loadEvents() {
     const container = document.getElementById('eventsContainer');
     if (!container) return;
     
-    container.innerHTML = '';
+    setLoading(true);
     
-    appState.events.forEach(event => {
-        const eventCard = createEventCard(event);
-        container.appendChild(eventCard);
-    });
+    try {
+        const response = await apiRequest('events.php?status=active');
+        appState.events = response.events;
+        
+        container.innerHTML = '';
+        
+        response.events.forEach(event => {
+            const eventCard = createEventCard(event);
+            container.appendChild(eventCard);
+        });
+        
+    } catch (error) {
+        container.innerHTML = '<div class="col-12"><div class="alert alert-danger">Fehler beim Laden der Events: ' + error.message + '</div></div>';
+    } finally {
+        setLoading(false);
+    }
 }
 
 function createEventCard(event) {
@@ -155,34 +269,40 @@ function createEventCard(event) {
     card.className = 'col-md-6 col-lg-4 mb-4';
     
     const optionsHtml = event.options.map(option => 
-        `<div class="bet-option" data-event-id="${event.id}" data-option-id="${option.id}">
-            ${option.name} (${option.odds}x)
+        `<div class="bet-option" data-event-id="${event.id}" data-option-id="${option.id}" data-odds="${option.odds}">
+            ${option.option_text} (${option.odds}x)
          </div>`
     ).join('');
     
     card.innerHTML = `
         <div class="event-card">
-            <div class="event-title">${event.title}</div>
+            <div class="event-title">${escapeHtml(event.title)}</div>
             <div class="event-date">
                 <i class="fas fa-calendar-alt me-2"></i>
-                ${formatDate(event.date)}
+                ${escapeHtml(event.formatted_start_date)}
             </div>
-            <div class="event-description">${event.description}</div>
+            <div class="event-description">${escapeHtml(event.description)}</div>
             <div class="bet-options">
                 ${optionsHtml}
             </div>
             <div class="d-flex justify-content-between align-items-center">
-                <input type="number" class="form-control me-2" placeholder="Punkte" min="10" max="${appState.userPoints}" id="bet-amount-${event.id}" style="width: 100px;">
-                <button class="btn btn-primary" onclick="placeBet(${event.id})">
+                <input type="number" class="form-control me-2" placeholder="Punkte" min="${event.min_bet || 10}" max="${Math.min(event.max_bet || 1000, appState.userPoints)}" id="bet-amount-${event.id}" style="width: 120px;">
+                <button class="btn btn-primary" onclick="placeBet(${event.id})" ${!appState.currentUser ? 'disabled' : ''}>
                     <i class="fas fa-coins me-1"></i>Setzen
                 </button>
             </div>
+            ${!appState.currentUser ? '<small class="text-muted">Login erforderlich</small>' : ''}
         </div>
     `;
     
     // Add click listeners to bet options
     card.querySelectorAll('.bet-option').forEach(option => {
         option.addEventListener('click', function() {
+            if (!appState.currentUser) {
+                showAlert('Bitte logge dich ein, um zu setzen!', 'warning');
+                return;
+            }
+            
             // Remove selection from siblings
             this.parentNode.querySelectorAll('.bet-option').forEach(opt => 
                 opt.classList.remove('selected'));
@@ -194,91 +314,7 @@ function createEventCard(event) {
     return card;
 }
 
-function loadLeaderboard() {
-    const tableBody = document.getElementById('leaderboardTable');
-    if (!tableBody) return;
-    
-    tableBody.innerHTML = '';
-    
-    appState.leaderboard.forEach(user => {
-        const row = document.createElement('tr');
-        
-        let rankIcon = '';
-        if (user.rank === 1) rankIcon = '<i class="fas fa-crown text-warning me-2"></i>';
-        else if (user.rank === 2) rankIcon = '<i class="fas fa-medal text-secondary me-2"></i>';
-        else if (user.rank === 3) rankIcon = '<i class="fas fa-medal text-warning me-2"></i>';
-        
-        row.innerHTML = `
-            <td>${rankIcon}${user.rank}</td>
-            <td>${user.username}</td>
-            <td><span class="points-display">${user.points.toLocaleString()}</span></td>
-            <td>${user.wins}</td>
-        `;
-        
-        tableBody.appendChild(row);
-    });
-}
-
-function loadCommunity() {
-    const discussionsContainer = document.getElementById('discussionsContainer');
-    const onlineUsers = document.getElementById('onlineUsers');
-    
-    if (discussionsContainer) {
-        discussionsContainer.innerHTML = `
-            <div class="mb-3">
-                <div class="d-flex align-items-center mb-2">
-                    <strong>RapKing2024</strong>
-                    <span class="badge bg-primary ms-2">Top User</span>
-                    <small class="text-muted ms-auto">vor 5 Min</small>
-                </div>
-                <p>Was denkt ihr über das neue Capital Bra Album? Wird es wieder Platz 1?</p>
-                <div class="d-flex gap-2">
-                    <button class="btn btn-sm btn-outline-primary">
-                        <i class="fas fa-thumbs-up me-1"></i>12
-                    </button>
-                    <button class="btn btn-sm btn-outline-secondary">Antworten</button>
-                </div>
-            </div>
-            <hr>
-            <div class="mb-3">
-                <div class="d-flex align-items-center mb-2">
-                    <strong>HipHopFan</strong>
-                    <small class="text-muted ms-auto">vor 12 Min</small>
-                </div>
-                <p>Apache 207 Tour Tickets sind ausverkauft! Wer hat welche ergattert?</p>
-                <div class="d-flex gap-2">
-                    <button class="btn btn-sm btn-outline-primary">
-                        <i class="fas fa-thumbs-up me-1"></i>8
-                    </button>
-                    <button class="btn btn-sm btn-outline-secondary">Antworten</button>
-                </div>
-            </div>
-        `;
-    }
-    
-    if (onlineUsers) {
-        onlineUsers.innerHTML = `
-            <div class="d-flex align-items-center mb-2">
-                <div class="bg-success rounded-circle me-2" style="width: 8px; height: 8px;"></div>
-                <span>RapKing2024</span>
-            </div>
-            <div class="d-flex align-items-center mb-2">
-                <div class="bg-success rounded-circle me-2" style="width: 8px; height: 8px;"></div>
-                <span>HipHopFan</span>
-            </div>
-            <div class="d-flex align-items-center mb-2">
-                <div class="bg-warning rounded-circle me-2" style="width: 8px; height: 8px;"></div>
-                <span>BeatsLover</span>
-            </div>
-            <div class="d-flex align-items-center mb-2">
-                <div class="bg-success rounded-circle me-2" style="width: 8px; height: 8px;"></div>
-                <span>GermanRapFan</span>
-            </div>
-        `;
-    }
-}
-
-function placeBet(eventId) {
+async function placeBet(eventId) {
     if (!appState.currentUser) {
         showAlert('Bitte logge dich ein, um zu setzen!', 'danger');
         return;
@@ -303,96 +339,123 @@ function placeBet(eventId) {
         return;
     }
     
-    // Place bet
-    const optionId = selectedOption.getAttribute('data-option-id');
-    const event = appState.events.find(e => e.id == eventId);
-    const option = event.options.find(o => o.id == optionId);
+    setLoading(true);
     
-    const bet = {
-        eventId: eventId,
-        optionId: optionId,
-        amount: betAmount,
-        odds: option.odds,
-        eventTitle: event.title,
-        optionName: option.name,
-        timestamp: new Date()
-    };
-    
-    appState.userBets.push(bet);
-    appState.userPoints -= betAmount;
-    
-    updatePointsDisplay();
-    saveUserData();
-    
-    showAlert(`Wette platziert: ${betAmount} Punkte auf "${option.name}"!`, 'success');
-    
-    // Reset form
-    selectedOption.classList.remove('selected');
-    betAmountInput.value = '';
+    try {
+        const response = await apiRequest('events.php', {
+            method: 'POST',
+            body: {
+                action: 'place_bet',
+                event_id: eventId,
+                option_id: selectedOption.getAttribute('data-option-id'),
+                amount: betAmount
+            }
+        });
+        
+        // Update points
+        appState.userPoints = response.new_points;
+        updatePointsDisplay();
+        
+        showAlert(response.message, 'success');
+        
+        // Reset form
+        selectedOption.classList.remove('selected');
+        betAmountInput.value = '';
+        
+        // Update bet amount max value
+        betAmountInput.max = Math.min(1000, appState.userPoints);
+        
+    } catch (error) {
+        showAlert(error.message, 'danger');
+    } finally {
+        setLoading(false);
+    }
 }
 
-function login() {
-    const username = document.getElementById('username').value.trim();
-    const password = document.getElementById('password').value;
+// Leaderboard Functions
+async function loadLeaderboard() {
+    const tableBody = document.getElementById('leaderboardTable');
+    if (!tableBody) return;
     
-    if (!username || !password) {
-        showAlert('Bitte fülle alle Felder aus!', 'danger');
-        return;
+    setLoading(true);
+    
+    try {
+        const response = await apiRequest('leaderboard.php?type=points&limit=50');
+        
+        tableBody.innerHTML = '';
+        
+        response.leaderboard.forEach(user => {
+            const row = document.createElement('tr');
+            
+            let rankIcon = '';
+            if (user.rank === 1) rankIcon = '<i class="fas fa-crown text-warning me-2"></i>';
+            else if (user.rank === 2) rankIcon = '<i class="fas fa-medal text-secondary me-2"></i>';
+            else if (user.rank === 3) rankIcon = '<i class="fas fa-medal text-warning me-2"></i>';
+            
+            row.innerHTML = `
+                <td>${rankIcon}${user.rank}</td>
+                <td>${escapeHtml(user.username)}</td>
+                <td><span class="points-display">${user.formatted_points}</span></td>
+                <td>${user.wins}</td>
+                <td>${user.win_rate}%</td>
+            `;
+            
+            // Highlight current user
+            if (appState.currentUser && user.id === appState.currentUser.id) {
+                row.classList.add('table-warning');
+            }
+            
+            tableBody.appendChild(row);
+        });
+        
+    } catch (error) {
+        tableBody.innerHTML = '<tr><td colspan="5" class="text-center text-danger">Fehler beim Laden der Rangliste: ' + error.message + '</td></tr>';
+    } finally {
+        setLoading(false);
+    }
+}
+
+// Community Functions (placeholder)
+function loadCommunity() {
+    const discussionsContainer = document.getElementById('discussionsContainer');
+    const onlineUsers = document.getElementById('onlineUsers');
+    
+    if (discussionsContainer) {
+        discussionsContainer.innerHTML = `
+            <div class="text-center text-muted">
+                <i class="fas fa-comments fa-3x mb-3"></i>
+                <p>Community-Features kommen bald!</p>
+            </div>
+        `;
     }
     
-    // Simple login simulation
-    appState.currentUser = {
-        username: username,
-        points: appState.userPoints,
-        joinDate: new Date()
-    };
-    
-    updateUserDisplay();
-    saveUserData();
-    
-    // Close modal
-    const loginModal = bootstrap.Modal.getInstance(document.getElementById('loginModal'));
-    loginModal.hide();
-    
-    showAlert(`Willkommen, ${username}!`, 'success');
-}
-
-function register() {
-    const username = document.getElementById('username').value.trim();
-    const password = document.getElementById('password').value;
-    
-    if (!username || !password) {
-        showAlert('Bitte fülle alle Felder aus!', 'danger');
-        return;
+    if (onlineUsers) {
+        onlineUsers.innerHTML = `
+            <div class="text-center text-muted">
+                <i class="fas fa-users fa-2x mb-2"></i>
+                <p>Online-Status kommt bald!</p>
+            </div>
+        `;
     }
-    
-    // Simple registration simulation
-    appState.currentUser = {
-        username: username,
-        points: 1000, // Startpunkte
-        joinDate: new Date()
-    };
-    
-    appState.userPoints = 1000;
-    
-    updateUserDisplay();
-    saveUserData();
-    
-    // Close modal
-    const loginModal = bootstrap.Modal.getInstance(document.getElementById('loginModal'));
-    loginModal.hide();
-    
-    showAlert(`Account erstellt! Willkommen, ${username}!`, 'success');
 }
 
+// UI Helper Functions
 function updateUserDisplay() {
     const loginLink = document.querySelector('[data-bs-target="#loginModal"]');
     if (appState.currentUser && loginLink) {
-        loginLink.innerHTML = `<i class="fas fa-user me-1"></i>${appState.currentUser.username}`;
+        loginLink.innerHTML = `<i class="fas fa-user me-1"></i>${escapeHtml(appState.currentUser.username)}`;
         loginLink.setAttribute('href', '#');
         loginLink.removeAttribute('data-bs-toggle');
         loginLink.removeAttribute('data-bs-target');
-        loginLink.onclick = logout;
+        loginLink.onclick = (e) => {
+            e.preventDefault();
+            handleLogout();
+        };
+    } else if (loginLink) {
+        loginLink.innerHTML = '<i class="fas fa-user me-1"></i>Login';
+        loginLink.setAttribute('data-bs-toggle', 'modal');
+        loginLink.setAttribute('data-bs-target', '#loginModal');
+        loginLink.onclick = null;
     }
     updatePointsDisplay();
 }
@@ -404,35 +467,20 @@ function updatePointsDisplay() {
     }
 }
 
-function logout() {
-    appState.currentUser = null;
-    localStorage.removeItem('rapmarket_user');
-    
-    const loginLink = document.querySelector('.navbar-nav .nav-link[href="#"]');
-    if (loginLink && loginLink.textContent.includes('fa-user')) {
-        loginLink.innerHTML = '<i class="fas fa-user me-1"></i>Login';
-        loginLink.setAttribute('data-bs-toggle', 'modal');
-        loginLink.setAttribute('data-bs-target', '#loginModal');
-        loginLink.onclick = null;
-    }
-    
-    showAlert('Erfolgreich abgemeldet!', 'success');
+function setLoading(loading) {
+    appState.loading = loading;
+    const loadingElements = document.querySelectorAll('.loading-spinner');
+    loadingElements.forEach(el => {
+        el.style.display = loading ? 'inline-block' : 'none';
+    });
 }
 
-function saveUserData() {
-    if (appState.currentUser) {
-        appState.currentUser.points = appState.userPoints;
-        appState.currentUser.bets = appState.userBets;
-        localStorage.setItem('rapmarket_user', JSON.stringify(appState.currentUser));
-    }
-}
-
-function showAlert(message, type) {
+function showAlert(message, type = 'info') {
     const alertDiv = document.createElement('div');
     alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
     alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
     alertDiv.innerHTML = `
-        ${message}
+        ${escapeHtml(message)}
         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     `;
     
@@ -446,24 +494,30 @@ function showAlert(message, type) {
     }, 5000);
 }
 
-function formatDate(dateString) {
-    const date = new Date(dateString);
-    const options = { 
-        year: 'numeric', 
-        month: 'long', 
-        day: 'numeric',
-        weekday: 'long'
-    };
-    return date.toLocaleDateString('de-DE', options);
-}
-
-// Add some fun animations
-function addBeatAnimation() {
-    const logo = document.getElementById('logo');
-    if (logo) {
-        logo.classList.add('beat-animation');
+function closeModal(modalId) {
+    const modalElement = document.getElementById(modalId);
+    if (modalElement) {
+        const modal = bootstrap.Modal.getInstance(modalElement);
+        if (modal) {
+            modal.hide();
+        }
     }
 }
 
-// Initialize beat animation
-setTimeout(addBeatAnimation, 1000);
+function escapeHtml(text) {
+    const map = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#039;'
+    };
+    return text.replace(/[&<>"']/g, function(m) { return map[m]; });
+}
+
+// Global functions for HTML onclick attributes
+window.placeBet = placeBet;
+window.handleLogin = handleLogin;
+window.handleRegister = handleRegister;
+window.login = handleLogin; // Backward compatibility
+window.register = handleRegister; // Backward compatibility

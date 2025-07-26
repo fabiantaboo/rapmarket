@@ -1,20 +1,21 @@
-/* RapMarket.de Custom Styles */
+/* RapMarket.de Professional Styles */
 
 :root {
-    --primary-color: #ff6b35;
-    --secondary-color: #1a1a2e;
-    --accent-color: #16213e;
-    --gold-color: #ffd700;
-    --success-color: #28a745;
-    --danger-color: #dc3545;
-    --dark-bg: #0f0f23;
-    --card-bg: #1e1e3f;
-    --text-light: #e0e0e0;
+    --primary-color: #2c3e50;
+    --secondary-color: #34495e;
+    --accent-color: #3498db;
+    --gold-color: #f39c12;
+    --success-color: #27ae60;
+    --danger-color: #e74c3c;
+    --dark-bg: #1a252f;
+    --card-bg: #2c3e50;
+    --text-light: #ecf0f1;
+    --border-color: #34495e;
 }
 
 body {
-    background: linear-gradient(135deg, var(--dark-bg) 0%, var(--secondary-color) 100%);
-    font-family: 'Arial', sans-serif;
+    background: var(--dark-bg);
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     color: var(--text-light);
     min-height: 100vh;
 }
@@ -22,8 +23,8 @@ body {
 /* Navbar Styling */
 .navbar-brand {
     font-size: 1.5rem;
-    color: var(--primary-color) !important;
-    text-shadow: 0 0 10px rgba(255, 107, 53, 0.3);
+    color: var(--accent-color) !important;
+    font-weight: 600;
 }
 
 .navbar-dark .navbar-nav .nav-link {
@@ -33,117 +34,109 @@ body {
 
 .navbar-dark .navbar-nav .nav-link:hover,
 .navbar-dark .navbar-nav .nav-link.active {
-    color: var(--primary-color) !important;
-    text-shadow: 0 0 5px rgba(255, 107, 53, 0.5);
+    color: var(--accent-color) !important;
 }
 
 /* Hero Section */
 .hero-section {
-    padding: 100px 0;
-    background: linear-gradient(45deg, var(--secondary-color), var(--accent-color));
-    position: relative;
-    overflow: hidden;
-}
-
-.hero-section::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="2" fill="rgba(255,107,53,0.1)"/></svg>') repeat;
-    animation: float 20s infinite linear;
-}
-
-@keyframes float {
-    0% { transform: translateY(0px) rotate(0deg); }
-    100% { transform: translateY(-100px) rotate(360deg); }
+    padding: 80px 0;
+    background: var(--secondary-color);
+    border-bottom: 3px solid var(--accent-color);
 }
 
 .hero-section h1 {
-    color: var(--primary-color);
-    text-shadow: 0 0 20px rgba(255, 107, 53, 0.5);
+    color: var(--text-light);
+    font-weight: 700;
     margin-bottom: 2rem;
 }
 
 .hero-section .lead {
-    font-size: 1.3rem;
-    text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+    font-size: 1.2rem;
+    color: var(--text-light);
+    opacity: 0.9;
 }
 
 /* Cards */
 .card {
     background: var(--card-bg);
-    border: 1px solid rgba(255, 107, 53, 0.2);
-    border-radius: 15px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    transition: box-shadow 0.3s ease;
 }
 
 .card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 12px 40px rgba(255, 107, 53, 0.2);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
 }
 
 .card-header {
-    background: linear-gradient(45deg, var(--primary-color), #ff8c42);
-    border-bottom: none;
+    background: var(--primary-color);
+    border-bottom: 1px solid var(--border-color);
     color: white;
-    font-weight: bold;
+    font-weight: 600;
+    border-radius: 8px 8px 0 0;
 }
 
 /* Buttons */
 .btn-primary {
-    background: linear-gradient(45deg, var(--primary-color), #ff8c42);
-    border: none;
-    border-radius: 25px;
-    padding: 10px 25px;
-    font-weight: bold;
+    background: var(--accent-color);
+    border: 1px solid var(--accent-color);
+    border-radius: 6px;
+    padding: 10px 20px;
+    font-weight: 500;
     transition: all 0.3s ease;
 }
 
 .btn-primary:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 5px 15px rgba(255, 107, 53, 0.4);
+    background: #2980b9;
+    border-color: #2980b9;
 }
 
 .btn-success {
-    background: linear-gradient(45deg, var(--success-color), #20c997);
-    border: none;
-    border-radius: 25px;
-    padding: 10px 25px;
-    font-weight: bold;
+    background: var(--success-color);
+    border: 1px solid var(--success-color);
+    border-radius: 6px;
+    padding: 10px 20px;
+    font-weight: 500;
+}
+
+.btn-success:hover {
+    background: #229954;
+    border-color: #229954;
 }
 
 .btn-danger {
-    background: linear-gradient(45deg, var(--danger-color), #e74c3c);
-    border: none;
-    border-radius: 25px;
-    padding: 10px 25px;
-    font-weight: bold;
+    background: var(--danger-color);
+    border: 1px solid var(--danger-color);
+    border-radius: 6px;
+    padding: 10px 20px;
+    font-weight: 500;
+}
+
+.btn-danger:hover {
+    background: #c0392b;
+    border-color: #c0392b;
 }
 
 /* Event Cards */
 .event-card {
     background: var(--card-bg);
-    border: 2px solid transparent;
-    border-radius: 15px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
     padding: 20px;
     margin-bottom: 20px;
     transition: all 0.3s ease;
 }
 
 .event-card:hover {
-    border-color: var(--primary-color);
-    transform: translateY(-3px);
-    box-shadow: 0 10px 30px rgba(255, 107, 53, 0.3);
+    border-color: var(--accent-color);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
 }
 
 .event-title {
-    color: var(--primary-color);
-    font-weight: bold;
-    font-size: 1.4rem;
+    color: var(--text-light);
+    font-weight: 600;
+    font-size: 1.3rem;
     margin-bottom: 10px;
 }
 
@@ -168,9 +161,9 @@ body {
 }
 
 .bet-option {
-    background: rgba(255, 107, 53, 0.1);
-    border: 2px solid var(--primary-color);
-    border-radius: 25px;
+    background: transparent;
+    border: 2px solid var(--border-color);
+    border-radius: 6px;
     padding: 8px 15px;
     cursor: pointer;
     transition: all 0.3s ease;
@@ -179,24 +172,23 @@ body {
 }
 
 .bet-option:hover {
-    background: var(--primary-color);
-    color: white;
-    transform: scale(1.05);
+    border-color: var(--accent-color);
+    background: rgba(52, 152, 219, 0.1);
 }
 
 .bet-option.selected {
-    background: var(--primary-color);
+    background: var(--accent-color);
+    border-color: var(--accent-color);
     color: white;
-    box-shadow: 0 0 15px rgba(255, 107, 53, 0.5);
 }
 
 /* Points Display */
 .points-display {
-    background: linear-gradient(45deg, var(--gold-color), #ffed4e);
-    color: #333;
-    border-radius: 20px;
-    padding: 5px 15px;
-    font-weight: bold;
+    background: var(--gold-color);
+    color: #2c3e50;
+    border-radius: 6px;
+    padding: 4px 12px;
+    font-weight: 600;
     display: inline-block;
 }
 
@@ -206,45 +198,45 @@ body {
 }
 
 .table th {
-    border-color: var(--primary-color);
-    color: var(--primary-color);
-    font-weight: bold;
+    border-color: var(--border-color);
+    color: var(--accent-color);
+    font-weight: 600;
 }
 
 .table td {
-    border-color: rgba(255, 107, 53, 0.2);
+    border-color: var(--border-color);
 }
 
 .table-hover tbody tr:hover {
-    background-color: rgba(255, 107, 53, 0.1);
+    background-color: rgba(52, 152, 219, 0.1);
 }
 
 /* Modal Styling */
 .modal-content {
     background: var(--card-bg);
-    border: 1px solid var(--primary-color);
-    border-radius: 15px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
 }
 
 .modal-header {
-    border-bottom: 1px solid var(--primary-color);
+    border-bottom: 1px solid var(--border-color);
 }
 
 .modal-footer {
-    border-top: 1px solid var(--primary-color);
+    border-top: 1px solid var(--border-color);
 }
 
 .form-control {
-    background: rgba(255, 255, 255, 0.1);
-    border: 1px solid rgba(255, 107, 53, 0.3);
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border-color);
     color: var(--text-light);
-    border-radius: 10px;
+    border-radius: 6px;
 }
 
 .form-control:focus {
-    background: rgba(255, 255, 255, 0.15);
-    border-color: var(--primary-color);
-    box-shadow: 0 0 10px rgba(255, 107, 53, 0.3);
+    background: rgba(255, 255, 255, 0.1);
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 0.2rem rgba(52, 152, 219, 0.25);
     color: var(--text-light);
 }
 
@@ -291,7 +283,7 @@ body {
 /* Footer */
 footer {
     background: var(--secondary-color) !important;
-    border-top: 2px solid var(--primary-color);
+    border-top: 2px solid var(--accent-color);
 }
 
 /* Custom Scrollbar */
@@ -304,12 +296,12 @@ footer {
 }
 
 ::-webkit-scrollbar-thumb {
-    background: var(--primary-color);
+    background: var(--accent-color);
     border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-    background: #ff8c42;
+    background: #2980b9;
 }
 
 /* Loading Animation */
@@ -317,9 +309,9 @@ footer {
     display: inline-block;
     width: 20px;
     height: 20px;
-    border: 3px solid rgba(255, 107, 53, 0.3);
+    border: 3px solid rgba(52, 152, 219, 0.3);
     border-radius: 50%;
-    border-top-color: var(--primary-color);
+    border-top-color: var(--accent-color);
     animation: spin 1s ease-in-out infinite;
 }
 
@@ -329,31 +321,30 @@ footer {
 
 /* Success/Error Messages */
 .alert {
-    border-radius: 10px;
+    border-radius: 6px;
     border: none;
 }
 
 .alert-success {
-    background: linear-gradient(45deg, var(--success-color), #20c997);
+    background: var(--success-color);
     color: white;
 }
 
 .alert-danger {
-    background: linear-gradient(45deg, var(--danger-color), #e74c3c);
+    background: var(--danger-color);
     color: white;
 }
 
-/* Hip-Hop themed elements */
+/* Professional themed elements */
 .microphone-icon {
-    color: var(--primary-color);
-    text-shadow: 0 0 10px rgba(255, 107, 53, 0.5);
+    color: var(--accent-color);
 }
 
 .beat-animation {
-    animation: beat 1s infinite;
+    animation: beat 2s infinite;
 }
 
 @keyframes beat {
     0%, 100% { transform: scale(1); }
-    50% { transform: scale(1.1); }
+    50% { transform: scale(1.02); }
 }
