@@ -234,8 +234,8 @@ function handleLoginV3($input, $db) {
     
     try {
         $user = $db->fetchOne(
-            "SELECT * FROM users WHERE (username = :login OR email = :login) AND is_active = 1",
-            ['login' => $username]
+            "SELECT * FROM users WHERE (username = :username OR email = :email) AND is_active = 1",
+            ['username' => $username, 'email' => $username]
         );
         
         Logger::debug('Database query executed', [

@@ -79,8 +79,8 @@ try {
     }
 
     echo "<br><h3>7. Test OR-Abfrage (wie im Auth)...</h3>";
-    $authQuery = "SELECT * FROM users WHERE (username = :login OR email = :login) AND is_active = 1";
-    $authUser = $db->fetchOne($authQuery, ['login' => 'fabianadmin']);
+    $authQuery = "SELECT * FROM users WHERE (username = :username OR email = :email) AND is_active = 1";
+    $authUser = $db->fetchOne($authQuery, ['username' => 'fabianadmin', 'email' => 'fabianadmin']);
     
     if ($authUser) {
         echo "✅ OR-Query erfolgreich - User gefunden<br>";
