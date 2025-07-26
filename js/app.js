@@ -8,11 +8,13 @@ const appState = {
     events: [],
     leaderboard: [],
     userBets: [],
-    loading: false
+    loading: false,
+    authMode: 'login' // 'login' oder 'register'
 };
 
-// API Base URL
+// API Base URL - Verwende auth_v2.php temporär
 const API_BASE = 'api/';
+const AUTH_ENDPOINT = 'auth_v2.php'; // Funktionierende Version ohne Rate Limiting
 
 // Initialize App
 document.addEventListener('DOMContentLoaded', function() {
@@ -79,7 +81,7 @@ async function apiRequest(endpoint, options = {}) {
 // Authentication Functions
 async function checkUserSession() {
     try {
-        const response = await apiRequest('auth.php', {
+        const response = await apiRequest(AUTH_ENDPOINT, {
             method: 'POST',
             body: { action: 'check_session' }
         });
@@ -107,7 +109,7 @@ async function handleLogin() {
     setLoading(true);
     
     try {
-        const response = await apiRequest('auth.php', {
+        const response = await apiRequest(AUTH_ENDPOINT, {
             method: 'POST',
             body: {
                 action: 'login',
@@ -154,7 +156,7 @@ async function handleRegister() {
     setLoading(true);
     
     try {
-        const response = await apiRequest('auth.php', {
+        const response = await apiRequest(AUTH_ENDPOINT, {
             method: 'POST',
             body: {
                 action: 'register',
@@ -185,7 +187,7 @@ async function handleRegister() {
 
 async function handleLogout() {
     try {
-        await apiRequest('auth.php', {
+        await apiRequest(AUTH_ENDPOINT, {
             method: 'POST',
             body: { action: 'logout' }
         });
@@ -515,9 +517,69 @@ function escapeHtml(text) {
     return text.replace(/[&<>"']/g, function(m) { return map[m]; });
 }
 
+// Authentication UI Functions
+function toggleAuthMode() {
+    appState.authMode = appState.authMode === 'login' ? 'register' : 'login';
+    updateAuthModalUI();
+}
+
+function updateAuthModalUI() {
+    const modalTitle = document.getElementById('authModalTitle');
+    const emailField = document.getElementById('emailField');
+    const confirmPasswordField = document.getElementById('confirmPasswordField');
+    const toggleBtn = document.getElementById('toggleModeBtn');
+    const submitBtn = document.getElementById('authSubmitBtn');
+    const emailInput = document.getElementById('email');
+    const confirmPasswordInput = document.getElementById('confirmPassword');
+    
+    if (appState.authMode === 'register') {
+        modalTitle.textContent = 'Registrierung';
+        emailField.style.display = 'block';
+        confirmPasswordField.style.display = 'block';
+        toggleBtn.textContent = 'Bereits registriert? Login';
+        submitBtn.textContent = 'Registrieren';
+        submitBtn.className = 'btn btn-success';
+        
+        // Required für Registrierung
+        emailInput.setAttribute('required', '');
+        confirmPasswordInput.setAttribute('required', '');
+    } else {
+        modalTitle.textContent = 'Login';
+        emailField.style.display = 'none';
+        confirmPasswordField.style.display = 'none';
+        toggleBtn.textContent = 'Noch kein Account? Registrieren';
+        submitBtn.textContent = 'Login';
+        submitBtn.className = 'btn btn-primary';
+        
+        // Nicht required für Login
+        emailInput.removeAttribute('required');
+        confirmPasswordInput.removeAttribute('required');
+    }
+}
+
+function handleAuth() {
+    if (appState.authMode === 'login') {
+        handleLogin();
+    } else {
+        handleRegister();
+    }
+}
+
+// Initialize Auth Modal on first open
+document.addEventListener('DOMContentLoaded', function() {
+    const loginModal = document.getElementById('loginModal');
+    if (loginModal) {
+        loginModal.addEventListener('show.bs.modal', function() {
+            updateAuthModalUI();
+        });
+    }
+});
+
 // Global functions for HTML onclick attributes
 window.placeBet = placeBet;
 window.handleLogin = handleLogin;
 window.handleRegister = handleRegister;
 window.login = handleLogin; // Backward compatibility
 window.register = handleRegister; // Backward compatibility
+window.toggleAuthMode = toggleAuthMode;
+window.handleAuth = handleAuth;

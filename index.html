@@ -161,7 +161,7 @@
         <div class="modal-dialog">
             <div class="modal-content bg-dark text-white">
                 <div class="modal-header">
-                    <h5 class="modal-title">Login / Registrierung</h5>
+                    <h5 class="modal-title" id="authModalTitle">Login</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
@@ -170,9 +170,17 @@
                             <label for="username" class="form-label">Username</label>
                             <input type="text" class="form-control" id="username" required>
                         </div>
+                        <div class="mb-3" id="emailField" style="display:none;">
+                            <label for="email" class="form-label">E-Mail-Adresse</label>
+                            <input type="email" class="form-control" id="email">
+                        </div>
                         <div class="mb-3">
                             <label for="password" class="form-label">Passwort</label>
                             <input type="password" class="form-control" id="password" required>
+                        </div>
+                        <div class="mb-3" id="confirmPasswordField" style="display:none;">
+                            <label for="confirmPassword" class="form-label">Passwort bestätigen</label>
+                            <input type="password" class="form-control" id="confirmPassword">
                         </div>
                         <div class="mb-3 form-check">
                             <input type="checkbox" class="form-check-input" id="rememberMe">
@@ -184,8 +192,8 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Schließen</button>
-                    <button type="button" class="btn btn-primary" onclick="login()">Login</button>
-                    <button type="button" class="btn btn-success" onclick="register()">Registrieren</button>
+                    <button type="button" class="btn btn-link" id="toggleModeBtn" onclick="toggleAuthMode()">Noch kein Account? Registrieren</button>
+                    <button type="button" class="btn btn-primary" id="authSubmitBtn" onclick="handleAuth()">Login</button>
                 </div>
             </div>
         </div>
