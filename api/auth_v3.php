@@ -231,10 +231,27 @@ function handleLoginV3($input, $db) {
     
     // Hole User - verwende Named Parameters
     Logger::debug('Searching for user', ['login' => $username]);
-    $user = $db->fetchOne(
-        "SELECT * FROM users WHERE (username = :login OR email = :login) AND is_active = 1",
-        ['login' => $username]
-    );
+    
+    try {
+        $user = $db->fetchOne(
+            "SELECT * FROM users WHERE (username = :login OR email = :login) AND is_active = 1",
+            ['login' => $username]
+        );
+        
+        Logger::debug('Database query executed', [
+            'user_found' => $user ? true : false,
+            'user_id' => $user ? $user['id'] : null
+        ]);
+        
+    } catch (Exception $e) {
+        Logger::error('Database error during user search', [
+            'error' => $e->getMessage(),
+            'login' => $username,
+            'file' => $e->getFile(),
+            'line' => $e->getLine()
+        ]);
+        sendErrorResponse('Datenbankfehler bei User-Suche');
+    }
     
     if (!$user) {
         Logger::warning('Login failed: User not found', ['login' => $username]);
