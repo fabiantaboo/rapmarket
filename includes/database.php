@@ -110,11 +110,18 @@ class Database {
     }
     
     private function checkAndCreateTables() {
-        // Prüfe ob users Tabelle existiert
-        $result = $this->connection->query("SHOW TABLES LIKE 'users'")->rowCount();
+        // Prüfe kritische Tabellen
+        $requiredTables = ['users', 'events', 'event_options', 'bets', 'rate_limits', 'user_logs', 'point_transactions'];
+        $missingTables = [];
         
-        if ($result === 0) {
-            // Tabellen existieren nicht, erstelle sie
+        foreach ($requiredTables as $table) {
+            if (!$this->tableExists($table)) {
+                $missingTables[] = $table;
+            }
+        }
+        
+        if (!empty($missingTables)) {
+            // Mindestens eine Tabelle fehlt, erstelle alle
             $this->createTables();
         }
     }
