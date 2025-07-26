@@ -12,9 +12,30 @@ set_error_handler(function($severity, $message, $file, $line) {
 });
 
 try {
+    if (!file_exists('../config.php')) {
+        throw new Exception('Config file not found');
+    }
     require_once '../config.php';
+    
+    if (!file_exists('../includes/database.php')) {
+        throw new Exception('Database class not found');
+    }
     require_once '../includes/database.php';
+    
+    if (!file_exists('../includes/functions.php')) {
+        throw new Exception('Functions file not found');
+    }
     require_once '../includes/functions.php';
+    
+    // Teste ob wichtige Funktionen verfügbar sind
+    if (!function_exists('sendErrorResponse')) {
+        throw new Exception('sendErrorResponse function not available');
+    }
+    
+    if (!function_exists('sendSuccessResponse')) {
+        throw new Exception('sendSuccessResponse function not available');
+    }
+    
 } catch (Exception $e) {
     ob_clean();
     header('Content-Type: application/json');
@@ -92,8 +113,8 @@ function handleRegisterV3($input, $db) {
     
     // Prüfe ob Username oder Email bereits existiert
     $existingUser = $db->fetchOne(
-        "SELECT id FROM users WHERE username = ? OR email = ?",
-        [$username, $email]
+        "SELECT id FROM users WHERE username = :username OR email = :email",
+        ['username' => $username, 'email' => $email]
     );
     
     if ($existingUser) {
@@ -103,17 +124,24 @@ function handleRegisterV3($input, $db) {
     // Erstelle User
     $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
     
-    $result = $db->execute(
-        "INSERT INTO users (username, email, password, points, created_at, is_active, is_verified, is_admin, login_count) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        [$username, $email, $hashedPassword, 1000, date('Y-m-d H:i:s'), 1, 0, 0, 0]
-    );
+    $userId = $db->insert('users', [
+        'username' => $username,
+        'email' => $email,
+        'password' => $hashedPassword,
+        'points' => 1000,
+        'created_at' => date('Y-m-d H:i:s'),
+        'is_active' => 1,
+        'is_verified' => 0,
+        'is_admin' => 0,
+        'login_count' => 0
+    ]);
     
-    if (!$result) {
+    if (!$userId) {
         sendErrorResponse('Registrierung fehlgeschlagen');
     }
     
     // Hole erstellten User
-    $user = $db->fetchOne("SELECT * FROM users WHERE username = ? AND email = ?", [$username, $email]);
+    $user = $db->fetchOne("SELECT * FROM users WHERE id = :id", ['id' => $userId]);
     
     if (!$user) {
         sendErrorResponse('User konnte nicht erstellt werden');
@@ -144,19 +172,11 @@ function handleLoginV3($input, $db) {
         sendErrorResponse('Username und Passwort sind erforderlich');
     }
     
-    // Hole User - vereinfachte Abfrage
+    // Hole User - verwende Named Parameters
     $user = $db->fetchOne(
-        "SELECT * FROM users WHERE username = ? AND is_active = 1",
-        [$username]
+        "SELECT * FROM users WHERE (username = :login OR email = :login) AND is_active = 1",
+        ['login' => $username]
     );
-    
-    // Falls nicht per Username gefunden, versuche Email
-    if (!$user) {
-        $user = $db->fetchOne(
-            "SELECT * FROM users WHERE email = ? AND is_active = 1",
-            [$username]
-        );
-    }
     
     if (!$user) {
         sendErrorResponse('User nicht gefunden');
@@ -168,9 +188,13 @@ function handleLoginV3($input, $db) {
     }
     
     // Update last_login
-    $db->execute(
-        "UPDATE users SET last_login = ?, login_count = login_count + 1 WHERE id = ?",
-        [date('Y-m-d H:i:s'), $user['id']]
+    $db->update('users', 
+        [
+            'last_login' => date('Y-m-d H:i:s'),
+            'login_count' => $user['login_count'] + 1
+        ], 
+        'id = :id', 
+        ['id' => $user['id']]
     );
     
     // Setze Session
@@ -203,8 +227,8 @@ function handleCheckSessionV3($db) {
     
     if (isset($_SESSION['user_id']) && !empty($_SESSION['user_id'])) {
         $user = $db->fetchOne(
-            "SELECT id, username, email, points FROM users WHERE id = ? AND is_active = 1",
-            [$_SESSION['user_id']]
+            "SELECT id, username, email, points FROM users WHERE id = :id AND is_active = 1",
+            ['id' => $_SESSION['user_id']]
         );
         
         if ($user) {
