@@ -51,11 +51,29 @@ class Database {
     public function query($sql, $params = []) {
         try {
             $stmt = $this->connection->prepare($sql);
-            $stmt->execute($params);
+            if (!$stmt) {
+                throw new PDOException("Statement preparation failed");
+            }
+            $result = $stmt->execute($params);
+            if (!$result) {
+                throw new PDOException("Statement execution failed");
+            }
             return $stmt;
         } catch (PDOException $e) {
-            error_log("Database query failed: " . $e->getMessage());
-            throw new Exception("Datenbankabfrage fehlgeschlagen");
+            $errorMsg = "Database query failed: " . $e->getMessage() . " | SQL: " . $sql . " | Params: " . json_encode($params);
+            error_log($errorMsg);
+            
+            // Include logger if available
+            if (class_exists('Logger')) {
+                Logger::error('Database query error', [
+                    'sql' => $sql,
+                    'params' => $params,
+                    'error' => $e->getMessage(),
+                    'code' => $e->getCode()
+                ]);
+            }
+            
+            throw new Exception("Datenbankabfrage fehlgeschlagen: " . $e->getMessage());
         }
     }
     
