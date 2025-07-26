@@ -27,6 +27,12 @@ try {
     }
     require_once '../includes/functions.php';
     
+    // Logger laden
+    if (!file_exists('../includes/logger.php')) {
+        throw new Exception('Logger class not found');
+    }
+    require_once '../includes/logger.php';
+    
     // Teste ob wichtige Funktionen verfügbar sind
     if (!function_exists('sendErrorResponse')) {
         throw new Exception('sendErrorResponse function not available');
@@ -36,11 +42,19 @@ try {
         throw new Exception('sendSuccessResponse function not available');
     }
     
+    Logger::info('Auth API v3 initialized');
+    
 } catch (Exception $e) {
     ob_clean();
     header('Content-Type: application/json');
     http_response_code(500);
-    echo json_encode(['error' => 'Server configuration error: ' . $e->getMessage()]);
+    $error = ['error' => 'Server configuration error: ' . $e->getMessage()];
+    echo json_encode($error);
+    
+    // Log auch in Datei falls Logger verfügbar
+    if (class_exists('Logger')) {
+        Logger::logException($e, ['api' => 'auth_v3', 'stage' => 'initialization']);
+    }
     exit;
 }
 
@@ -59,28 +73,35 @@ $action = $input['action'] ?? '';
 $db = Database::getInstance();
 
 try {
+    Logger::logApiRequest('auth_v3.php', $_SERVER['REQUEST_METHOD'], $input);
+    
     switch ($action) {
         case 'register':
+            Logger::info('Registration attempt', ['username' => $input['username'] ?? 'unknown']);
             handleRegisterV3($input, $db);
             break;
             
         case 'login':
+            Logger::info('Login attempt', ['username' => $input['username'] ?? 'unknown']);
             handleLoginV3($input, $db);
             break;
             
         case 'logout':
+            Logger::info('Logout attempt');
             handleLogoutV3();
             break;
             
         case 'check_session':
+            Logger::debug('Session check');
             handleCheckSessionV3($db);
             break;
             
         default:
+            Logger::warning('Invalid action', ['action' => $action]);
             sendErrorResponse('Ungültige Aktion');
     }
 } catch (Exception $e) {
-    error_log("Auth API Error: " . $e->getMessage());
+    Logger::logException($e, ['api' => 'auth_v3', 'action' => $action, 'input' => $input]);
     sendErrorResponse($e->getMessage());
 }
 
@@ -90,24 +111,39 @@ function handleRegisterV3($input, $db) {
     $password = $input['password'] ?? '';
     $confirmPassword = $input['confirm_password'] ?? '';
     
+    Logger::debug('Registration validation', [
+        'username_length' => strlen($username),
+        'email_valid' => filter_var($email, FILTER_VALIDATE_EMAIL) !== false,
+        'password_length' => strlen($password)
+    ]);
+    
     // Validierung
     if (empty($username) || empty($email) || empty($password)) {
+        Logger::warning('Registration failed: Empty fields', [
+            'username_empty' => empty($username),
+            'email_empty' => empty($email),
+            'password_empty' => empty($password)
+        ]);
         sendErrorResponse('Alle Felder sind erforderlich');
     }
     
     if ($password !== $confirmPassword) {
+        Logger::warning('Registration failed: Password mismatch');
         sendErrorResponse('Passwörter stimmen nicht überein');
     }
     
     if (strlen($username) < 3 || strlen($username) > 20) {
+        Logger::warning('Registration failed: Username length', ['length' => strlen($username)]);
         sendErrorResponse('Username muss zwischen 3 und 20 Zeichen lang sein');
     }
     
     if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        Logger::warning('Registration failed: Invalid email', ['email' => $email]);
         sendErrorResponse('Ungültige E-Mail-Adresse');
     }
     
     if (strlen($password) < 6) {
+        Logger::warning('Registration failed: Password too short', ['length' => strlen($password)]);
         sendErrorResponse('Passwort muss mindestens 6 Zeichen lang sein');
     }
     
@@ -118,10 +154,16 @@ function handleRegisterV3($input, $db) {
     );
     
     if ($existingUser) {
+        Logger::warning('Registration failed: User already exists', [
+            'existing_user_id' => $existingUser['id'],
+            'attempted_username' => $username,
+            'attempted_email' => $email
+        ]);
         sendErrorResponse('Username oder E-Mail bereits vergeben');
     }
     
     // Erstelle User
+    Logger::debug('Creating new user', ['username' => $username, 'email' => $email]);
     $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
     
     $userId = $db->insert('users', [
@@ -137,13 +179,17 @@ function handleRegisterV3($input, $db) {
     ]);
     
     if (!$userId) {
+        Logger::error('Registration failed: Database insert failed', ['username' => $username]);
         sendErrorResponse('Registrierung fehlgeschlagen');
     }
+    
+    Logger::info('User created successfully', ['user_id' => $userId, 'username' => $username]);
     
     // Hole erstellten User
     $user = $db->fetchOne("SELECT * FROM users WHERE id = :id", ['id' => $userId]);
     
     if (!$user) {
+        Logger::error('Registration failed: Could not fetch created user', ['user_id' => $userId]);
         sendErrorResponse('User konnte nicht erstellt werden');
     }
     
@@ -152,6 +198,8 @@ function handleRegisterV3($input, $db) {
     $_SESSION['user_id'] = $user['id'];
     $_SESSION['username'] = $user['username'];
     $_SESSION['login_time'] = time();
+    
+    Logger::logUserAction('register', $user['id'], ['auto_login' => true]);
     
     sendSuccessResponse([
         'user' => [
@@ -168,27 +216,46 @@ function handleLoginV3($input, $db) {
     $username = trim($input['username'] ?? '');
     $password = $input['password'] ?? '';
     
+    Logger::debug('Login validation', [
+        'username_length' => strlen($username),
+        'password_length' => strlen($password)
+    ]);
+    
     if (empty($username) || empty($password)) {
+        Logger::warning('Login failed: Empty credentials', [
+            'username_empty' => empty($username),
+            'password_empty' => empty($password)
+        ]);
         sendErrorResponse('Username und Passwort sind erforderlich');
     }
     
     // Hole User - verwende Named Parameters
+    Logger::debug('Searching for user', ['login' => $username]);
     $user = $db->fetchOne(
         "SELECT * FROM users WHERE (username = :login OR email = :login) AND is_active = 1",
         ['login' => $username]
     );
     
     if (!$user) {
+        Logger::warning('Login failed: User not found', ['login' => $username]);
         sendErrorResponse('User nicht gefunden');
     }
     
+    Logger::debug('User found, verifying password', ['user_id' => $user['id'], 'username' => $user['username']]);
+    
     // Password prüfen
     if (!password_verify($password, $user['password'])) {
+        Logger::warning('Login failed: Invalid password', [
+            'user_id' => $user['id'],
+            'username' => $user['username']
+        ]);
         sendErrorResponse('Falsches Passwort');
     }
     
+    Logger::info('Password verified, updating login stats', ['user_id' => $user['id']]);
+    
     // Update last_login
-    $db->update('users', 
+    $updateResult = $db->update('users', 
         [
             'last_login' => date('Y-m-d H:i:s'),
             'login_count' => $user['login_count'] + 1
@@ -197,11 +264,18 @@ function handleLoginV3($input, $db) {
         ['id' => $user['id']]
     );
     
+    Logger::debug('Login stats updated', ['update_result' => $updateResult]);
+    
     // Setze Session
     session_start();
     $_SESSION['user_id'] = $user['id'];
     $_SESSION['username'] = $user['username'];
     $_SESSION['login_time'] = time();
+    
+    Logger::logUserAction('login', $user['id'], [
+        'login_count' => $user['login_count'] + 1,
+        'session_id' => session_id()
+    ]);
     
     sendSuccessResponse([
         'user' => [
@@ -216,8 +290,14 @@ function handleLoginV3($input, $db) {
 
 function handleLogoutV3() {
     session_start();
+    $userId = $_SESSION['user_id'] ?? null;
+    
+    Logger::logUserAction('logout', $userId, ['session_id' => session_id()]);
+    
     session_destroy();
     setcookie(session_name(), '', time() - 3600, '/');
+    
+    Logger::info('User logged out successfully', ['user_id' => $userId]);
     
     sendSuccessResponse([], 'Logout erfolgreich');
 }
