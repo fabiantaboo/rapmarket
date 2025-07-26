@@ -147,7 +147,11 @@ class Database {
             }
         }
         
-        writeLog('INFO', 'Database tables created automatically');
+        if (function_exists('writeLog')) {
+            writeLog('INFO', 'Database tables created automatically');
+        } else {
+            error_log('Database tables created automatically');
+        }
     }
     
     private function splitSqlStatements($sql) {

@@ -70,6 +70,15 @@ if ($_POST) {
             
             // Test the configuration by including it and creating database
             require_once '../config.php';
+            
+            // Check if functions exist before including
+            if (!function_exists('writeLog')) {
+                // Define writeLog function for setup
+                function writeLog($level, $message, $context = []) {
+                    error_log("[$level] $message");
+                }
+            }
+            
             require_once '../includes/database.php';
             
             // This will automatically create the database and tables
