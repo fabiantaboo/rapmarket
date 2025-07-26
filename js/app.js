@@ -268,80 +268,180 @@ async function loadEvents() {
 
 function createEventCard(event) {
     const card = document.createElement('div');
-    card.className = 'col-md-6 col-lg-4 mb-4';
+    card.className = 'col-12 mb-4';
     
+    // Status Badge
+    let statusBadge = '';
+    if (event.is_live) {
+        statusBadge = '<span class="status-badge status-live">🔴 LIVE</span>';
+    } else if (event.is_upcoming) {
+        statusBadge = '<span class="status-badge status-upcoming">⏰ Bald verfügbar</span>';
+    } else {
+        statusBadge = '<span class="status-badge status-ended">⏹ Beendet</span>';
+    }
+    
+    // Event Meta Items
+    const metaItems = [
+        `<div class="event-meta-item">
+            <i class="fas fa-calendar-alt"></i>
+            <span>${event.formatted_event_date || 'Datum folgt'}</span>
+        </div>`,
+        `<div class="event-meta-item">
+            <i class="fas fa-tag"></i>
+            <span>${escapeHtml(event.category || 'Allgemein')}</span>
+        </div>`,
+        `<div class="event-meta-item">
+            <i class="fas fa-coins"></i>
+            <span>${event.min_bet || 10} - ${event.max_bet || 1000} Punkte</span>
+        </div>`,
+        `<div class="event-meta-item">
+            <i class="fas fa-users"></i>
+            <span>${event.bet_count || 0} Wetten</span>
+        </div>`
+    ];
+    
+    // Bet Options
     const optionsHtml = event.options.map(option => 
         `<div class="bet-option" data-event-id="${event.id}" data-option-id="${option.id}" data-odds="${option.odds}">
-            ${option.option_text} (${option.odds}x)
+            <div class="bet-option-text">${escapeHtml(option.option_text)}</div>
+            <div class="bet-option-odds">${option.odds}x</div>
          </div>`
     ).join('');
     
     card.innerHTML = `
         <div class="event-card">
-            <div class="event-title">${escapeHtml(event.title)}</div>
-            <div class="event-date">
-                <i class="fas fa-calendar-alt me-2"></i>
-                ${escapeHtml(event.formatted_start_date)}
+            <div class="d-flex justify-content-between align-items-start mb-3">
+                <div class="event-title">${escapeHtml(event.title)}</div>
+                ${statusBadge}
             </div>
-            <div class="event-description">${escapeHtml(event.description)}</div>
-            <div class="bet-options">
+            
+            <div class="event-description mb-3">${escapeHtml(event.description)}</div>
+            
+            <div class="event-meta mb-4">
+                ${metaItems.join('')}
+            </div>
+            
+            <div class="bet-options mb-4">
                 ${optionsHtml}
             </div>
-            <div class="d-flex justify-content-between align-items-center">
-                <input type="number" class="form-control me-2" placeholder="Punkte" min="${event.min_bet || 10}" max="${Math.min(event.max_bet || 1000, appState.userPoints)}" id="bet-amount-${event.id}" style="width: 120px;">
-                <button class="btn btn-primary" onclick="placeBet(${event.id})" ${!appState.currentUser ? 'disabled' : ''}>
-                    <i class="fas fa-coins me-1"></i>Setzen
-                </button>
+            
+            <div class="bet-input-section">
+                <div class="row align-items-end">
+                    <div class="col-md-4 mb-3 mb-md-0">
+                        <label class="form-label text-white fw-bold">Einsatz (Punkte)</label>
+                        <input type="number" 
+                               class="form-control bet-amount-input" 
+                               placeholder="Min. ${event.min_bet || 10}" 
+                               min="${event.min_bet || 10}" 
+                               max="${Math.min(event.max_bet || 1000, appState.userPoints)}" 
+                               id="bet-amount-${event.id}">
+                    </div>
+                    <div class="col-md-4 mb-3 mb-md-0">
+                        <div class="text-white fw-bold mb-2">Möglicher Gewinn</div>
+                        <div class="text-success fs-5 fw-bold" id="potential-win-${event.id}">-</div>
+                    </div>
+                    <div class="col-md-4">
+                        <button class="btn bet-button w-100" 
+                                onclick="placeBet(${event.id})" 
+                                ${!appState.currentUser ? 'disabled' : ''}
+                                id="bet-btn-${event.id}">
+                            <i class="fas fa-rocket me-2"></i>Wette platzieren
+                        </button>
+                    </div>
+                </div>
+                
+                ${!appState.currentUser ? 
+                    '<div class="text-center mt-3"><small class="text-warning">🔐 Login erforderlich zum Wetten</small></div>' : 
+                    '<div class="text-center mt-2"><small class="text-secondary">Verfügbare Punkte: <span class="text-success fw-bold">' + appState.userPoints.toLocaleString() + '</span></small></div>'
+                }
             </div>
-            ${!appState.currentUser ? '<small class="text-muted">Login erforderlich</small>' : ''}
         </div>
     `;
     
-    // Add click listeners to bet options
+    // Add interactive functionality
+    const eventCard = card.querySelector('.event-card');
+    const betAmountInput = card.querySelector(`#bet-amount-${event.id}`);
+    const potentialWinDisplay = card.querySelector(`#potential-win-${event.id}`);
+    
+    // Bet option selection
     card.querySelectorAll('.bet-option').forEach(option => {
         option.addEventListener('click', function() {
             if (!appState.currentUser) {
-                showAlert('Bitte logge dich ein, um zu setzen!', 'warning');
+                showAlert('🔐 Bitte logge dich ein, um zu setzen!', 'warning');
                 return;
             }
             
             // Remove selection from siblings
             this.parentNode.querySelectorAll('.bet-option').forEach(opt => 
                 opt.classList.remove('selected'));
+            
             // Add selection to clicked option
             this.classList.add('selected');
+            
+            // Update potential winnings
+            updatePotentialWinnings(event.id);
         });
     });
+    
+    // Update potential winnings on amount change
+    if (betAmountInput) {
+        betAmountInput.addEventListener('input', () => updatePotentialWinnings(event.id));
+    }
     
     return card;
 }
 
+function updatePotentialWinnings(eventId) {
+    const selectedOption = document.querySelector(`[data-event-id="${eventId}"].selected`);
+    const amountInput = document.getElementById(`bet-amount-${eventId}`);
+    const winDisplay = document.getElementById(`potential-win-${eventId}`);
+    
+    if (selectedOption && amountInput && winDisplay) {
+        const amount = parseFloat(amountInput.value) || 0;
+        const odds = parseFloat(selectedOption.getAttribute('data-odds')) || 1;
+        const potentialWin = Math.round(amount * odds);
+        
+        if (amount > 0) {
+            winDisplay.textContent = `+${potentialWin.toLocaleString()} Punkte`;
+            winDisplay.className = 'text-success fs-5 fw-bold';
+        } else {
+            winDisplay.textContent = '-';
+            winDisplay.className = 'text-muted fs-5';
+        }
+    }
+}
+
 async function placeBet(eventId) {
     if (!appState.currentUser) {
-        showAlert('Bitte logge dich ein, um zu setzen!', 'danger');
+        showAlert('🔐 Bitte logge dich ein, um zu setzen!', 'warning');
         return;
     }
     
     const selectedOption = document.querySelector(`[data-event-id="${eventId}"].selected`);
     const betAmountInput = document.getElementById(`bet-amount-${eventId}`);
+    const betButton = document.getElementById(`bet-btn-${eventId}`);
     
     if (!selectedOption) {
-        showAlert('Bitte wähle eine Option!', 'danger');
+        showAlert('🎯 Bitte wähle eine Wett-Option!', 'warning');
         return;
     }
     
     const betAmount = parseInt(betAmountInput.value);
     if (!betAmount || betAmount < 10) {
-        showAlert('Mindestbetrag: 10 Punkte!', 'danger');
+        showAlert('💰 Mindestbetrag: 10 Punkte!', 'warning');
+        betAmountInput.focus();
         return;
     }
     
     if (betAmount > appState.userPoints) {
-        showAlert('Nicht genügend Punkte!', 'danger');
+        showAlert('❌ Nicht genügend Punkte verfügbar!', 'danger');
         return;
     }
     
-    setLoading(true);
+    // Loading state
+    const originalButtonText = betButton.innerHTML;
+    betButton.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Platziere Wette...';
+    betButton.disabled = true;
     
     try {
         const response = await apiRequest('events.php', {
@@ -354,23 +454,53 @@ async function placeBet(eventId) {
             }
         });
         
-        // Update points
-        appState.userPoints = response.new_points;
-        updatePointsDisplay();
+        // Update user points
+        if (response.new_points !== undefined) {
+            appState.userPoints = response.new_points;
+            updatePointsDisplay();
+        }
         
-        showAlert(response.message, 'success');
+        // Success animation
+        betButton.innerHTML = '<i class="fas fa-check me-2"></i>Wette platziert!';
+        betButton.className = 'btn btn-success w-100';
         
-        // Reset form
-        selectedOption.classList.remove('selected');
-        betAmountInput.value = '';
+        // Show success message with details
+        const odds = selectedOption.getAttribute('data-odds');
+        const potentialWin = Math.round(betAmount * odds);
+        showAlert(`🚀 Wette erfolgreich! ${betAmount} Punkte gesetzt. Möglicher Gewinn: ${potentialWin.toLocaleString()} Punkte`, 'success');
         
-        // Update bet amount max value
-        betAmountInput.max = Math.min(1000, appState.userPoints);
+        // Reset form after delay
+        setTimeout(() => {
+            selectedOption.classList.remove('selected');
+            betAmountInput.value = '';
+            document.getElementById(`potential-win-${eventId}`).textContent = '-';
+            
+            // Update available amounts
+            const allAmountInputs = document.querySelectorAll('.bet-amount-input');
+            allAmountInputs.forEach(input => {
+                input.max = Math.min(1000, appState.userPoints);
+            });
+            
+            // Disable further betting on this event
+            betButton.innerHTML = '<i class="fas fa-lock me-2"></i>Wette platziert';
+            betButton.disabled = true;
+            betButton.className = 'btn btn-secondary w-100';
+            
+            // Disable all bet options for this event
+            document.querySelectorAll(`[data-event-id="${eventId}"]`).forEach(option => {
+                option.style.opacity = '0.5';
+                option.style.pointerEvents = 'none';
+            });
+            
+        }, 2000);
         
     } catch (error) {
-        showAlert(error.message, 'danger');
-    } finally {
-        setLoading(false);
+        showAlert(`❌ ${error.message}`, 'danger');
+        
+        // Reset button
+        betButton.innerHTML = originalButtonText;
+        betButton.disabled = false;
+        betButton.className = 'btn bet-button w-100';
     }
 }
 
