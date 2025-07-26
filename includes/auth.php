@@ -205,37 +205,68 @@ class Auth {
     }
     
     private function checkRateLimit($action) {
-        $ip = $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
-        $timeLimit = date('Y-m-d H:i:s', strtotime('-1 hour'));
-        
-        $attempts = $this->db->fetchOne(
-            "SELECT COUNT(*) as count FROM rate_limits WHERE ip = :ip AND action = :action AND created_at > :time_limit",
-            ['ip' => $ip, 'action' => $action, 'time_limit' => $timeLimit]
-        );
-        
-        $maxAttempts = ($action === 'login') ? MAX_LOGIN_ATTEMPTS : 5;
-        
-        if ($attempts['count'] >= $maxAttempts) {
-            throw new Exception("Zu viele Versuche. Bitte warten Sie eine Stunde.");
+        try {
+            $ip = $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
+            $timeLimit = date('Y-m-d H:i:s', strtotime('-1 hour'));
+            
+            $attempts = $this->db->fetchOne(
+                "SELECT COUNT(*) as count FROM rate_limits WHERE ip = :ip AND action = :action AND created_at > :time_limit",
+                ['ip' => $ip, 'action' => $action, 'time_limit' => $timeLimit]
+            );
+            
+            $maxAttempts = ($action === 'login') ? MAX_LOGIN_ATTEMPTS : 5;
+            
+            if ($attempts['count'] >= $maxAttempts) {
+                throw new Exception("Zu viele Versuche. Bitte warten Sie eine Stunde.");
+            }
+            
+            // Log den Versuch - mit UPDATE oder INSERT
+            $existing = $this->db->fetchOne(
+                "SELECT id FROM rate_limits WHERE ip = :ip AND action = :action",
+                ['ip' => $ip, 'action' => $action]
+            );
+            
+            if ($existing) {
+                // Update existing record
+                $this->db->update('rate_limits', 
+                    [
+                        'attempts' => $attempts['count'] + 1,
+                        'updated_at' => date('Y-m-d H:i:s')
+                    ],
+                    'id = :id',
+                    ['id' => $existing['id']]
+                );
+            } else {
+                // Insert new record
+                $this->db->insert('rate_limits', [
+                    'ip' => $ip,
+                    'action' => $action,
+                    'attempts' => 1,
+                    'created_at' => date('Y-m-d H:i:s'),
+                    'updated_at' => date('Y-m-d H:i:s')
+                ]);
+            }
+        } catch (Exception $e) {
+            // Rate limiting sollte nicht die ganze Anwendung zum Absturz bringen
+            error_log("Rate limiting error: " . $e->getMessage());
+            // Weiter ohne Rate Limiting
         }
-        
-        // Log den Versuch
-        $this->db->insert('rate_limits', [
-            'ip' => $ip,
-            'action' => $action,
-            'created_at' => date('Y-m-d H:i:s')
-        ]);
     }
     
     private function logAction($action, $userId = null, $details = '') {
-        $this->db->insert('user_logs', [
-            'user_id' => $userId,
-            'action' => $action,
-            'ip_address' => $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1',
-            'user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? '',
-            'details' => $details,
-            'created_at' => date('Y-m-d H:i:s')
-        ]);
+        try {
+            $this->db->insert('user_logs', [
+                'user_id' => $userId,
+                'action' => $action,
+                'ip_address' => $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1',
+                'user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? '',
+                'details' => $details,
+                'created_at' => date('Y-m-d H:i:s')
+            ]);
+        } catch (Exception $e) {
+            // Logging sollte nicht die ganze Anwendung zum Absturz bringen
+            error_log("User logging error: " . $e->getMessage());
+        }
     }
     
     public function generateCSRFToken() {
