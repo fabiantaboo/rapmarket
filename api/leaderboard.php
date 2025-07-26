@@ -3,7 +3,25 @@
  * API Endpoint für Leaderboard
  */
 
-require_once '../includes/init.php';
+// Output buffering starten
+ob_start();
+
+// Error handling für saubere JSON-Antworten
+set_error_handler(function($severity, $message, $file, $line) {
+    if (error_reporting() & $severity) {
+        throw new ErrorException($message, 0, $severity, $file, $line);
+    }
+});
+
+try {
+    require_once '../includes/init.php';
+} catch (Exception $e) {
+    ob_clean();
+    header('Content-Type: application/json');
+    http_response_code(500);
+    echo json_encode(['error' => 'Server configuration error']);
+    exit;
+}
 
 // Nur GET-Requests erlauben
 if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
@@ -175,4 +193,7 @@ function handleMonthlyLeaderboard($limit, $offset) {
         'period' => formatDate($startOfMonth, 'F Y')
     ]);
 }
+
+// Clean output buffer
+ob_end_clean();
 ?>

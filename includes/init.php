@@ -5,8 +5,19 @@
  */
 
 // Error Reporting und Debugging
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
+if (defined('APP_ENV') && APP_ENV === 'development') {
+    error_reporting(E_ALL);
+    ini_set('display_errors', 1);
+} else {
+    error_reporting(0);
+    ini_set('display_errors', 0);
+}
+
+// Für APIs: Keine HTML-Ausgabe von Fehlern
+if (strpos($_SERVER['REQUEST_URI'], '/api/') !== false) {
+    ini_set('display_errors', 0);
+    error_reporting(0);
+}
 
 // Autoloader für Klassen
 spl_autoload_register(function ($class) {

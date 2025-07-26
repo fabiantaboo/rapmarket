@@ -3,7 +3,26 @@
  * API Endpoint für Authentifizierung
  */
 
-require_once '../includes/init.php';
+// Output buffering starten um ungewollte Ausgaben zu verhindern
+ob_start();
+
+// Error handling für saubere JSON-Antworten
+set_error_handler(function($severity, $message, $file, $line) {
+    if (error_reporting() & $severity) {
+        throw new ErrorException($message, 0, $severity, $file, $line);
+    }
+});
+
+try {
+    require_once '../includes/init.php';
+} catch (Exception $e) {
+    // Clear any output
+    ob_clean();
+    header('Content-Type: application/json');
+    http_response_code(500);
+    echo json_encode(['error' => 'Server configuration error']);
+    exit;
+}
 
 // Nur POST-Requests erlauben
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -201,4 +220,7 @@ function handleGetUserData() {
         'recent_transactions' => $transactions
     ]);
 }
+
+// Clean output buffer and ensure JSON response
+ob_end_clean();
 ?>

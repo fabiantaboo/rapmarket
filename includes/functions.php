@@ -142,14 +142,37 @@ function checkApiRateLimit($identifier = null) {
         $identifier = $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
     }
     
-    $cacheKey = "rate_limit_{$identifier}";
-    $requests = apcu_fetch($cacheKey) ?: 0;
-    
-    if ($requests >= API_RATE_LIMIT) {
-        sendErrorResponse('Rate limit exceeded', 429);
+    // Fallback rate limiting mit Database statt APCu
+    try {
+        global $db;
+        
+        if (!$db) {
+            // Kein Rate Limiting wenn DB nicht verfügbar
+            return;
+        }
+        
+        $timeLimit = date('Y-m-d H:i:s', strtotime('-1 hour'));
+        
+        $requests = $db->fetchOne(
+            "SELECT COUNT(*) as count FROM rate_limits WHERE ip = :ip AND action = 'api_request' AND created_at > :time_limit",
+            ['ip' => $identifier, 'time_limit' => $timeLimit]
+        );
+        
+        if ($requests['count'] >= API_RATE_LIMIT) {
+            sendErrorResponse('Rate limit exceeded', 429);
+        }
+        
+        // Log den Request
+        $db->insert('rate_limits', [
+            'ip' => $identifier,
+            'action' => 'api_request',
+            'created_at' => date('Y-m-d H:i:s')
+        ]);
+        
+    } catch (Exception $e) {
+        // Ignoriere Rate Limiting Fehler, aber logge sie
+        error_log("Rate limiting error: " . $e->getMessage());
     }
-    
-    apcu_store($cacheKey, $requests + 1, 3600); // 1 Stunde
 }
 
 /**
