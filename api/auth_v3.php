@@ -1,12 +1,10 @@
 <?php
 /**
- * Verbesserte Auth API mit besserem Error-Handling
+ * Auth API v3 - Vereinfacht und mit besserer Fehlerbehandlung
  */
 
-// Output buffering starten
 ob_start();
 
-// Error handler für saubere JSON-Responses
 set_error_handler(function($severity, $message, $file, $line) {
     if (error_reporting() & $severity) {
         throw new ErrorException($message, 0, $severity, $file, $line);
@@ -17,9 +15,6 @@ try {
     require_once '../config.php';
     require_once '../includes/database.php';
     require_once '../includes/functions.php';
-    
-    // Auth-Klasse NICHT laden um Rate Limiting zu umgehen
-    
 } catch (Exception $e) {
     ob_clean();
     header('Content-Type: application/json');
@@ -45,19 +40,19 @@ $db = Database::getInstance();
 try {
     switch ($action) {
         case 'register':
-            handleRegisterV2($input, $db);
+            handleRegisterV3($input, $db);
             break;
             
         case 'login':
-            handleLoginV2($input, $db);
+            handleLoginV3($input, $db);
             break;
             
         case 'logout':
-            handleLogoutV2();
+            handleLogoutV3();
             break;
             
         case 'check_session':
-            handleCheckSessionV2($db);
+            handleCheckSessionV3($db);
             break;
             
         default:
@@ -68,9 +63,9 @@ try {
     sendErrorResponse($e->getMessage());
 }
 
-function handleRegisterV2($input, $db) {
-    $username = sanitizeInput($input['username'] ?? '');
-    $email = sanitizeInput($input['email'] ?? '');
+function handleRegisterV3($input, $db) {
+    $username = trim($input['username'] ?? '');
+    $email = trim($input['email'] ?? '');
     $password = $input['password'] ?? '';
     $confirmPassword = $input['confirm_password'] ?? '';
     
@@ -97,8 +92,8 @@ function handleRegisterV2($input, $db) {
     
     // Prüfe ob Username oder Email bereits existiert
     $existingUser = $db->fetchOne(
-        "SELECT id FROM users WHERE username = :username OR email = :email",
-        ['username' => $username, 'email' => $email]
+        "SELECT id FROM users WHERE username = ? OR email = ?",
+        [$username, $email]
     );
     
     if ($existingUser) {
@@ -108,26 +103,23 @@ function handleRegisterV2($input, $db) {
     // Erstelle User
     $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
     
-    $userId = $db->insert('users', [
-        'username' => $username,
-        'email' => $email,
-        'password' => $hashedPassword,
-        'points' => 1000,
-        'created_at' => date('Y-m-d H:i:s'),
-        'last_login' => null,
-        'is_active' => 1,
-        'is_verified' => 0,
-        'is_admin' => 0,
-        'login_count' => 0
-    ]);
+    $result = $db->execute(
+        "INSERT INTO users (username, email, password, points, created_at, is_active, is_verified, is_admin, login_count) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        [$username, $email, $hashedPassword, 1000, date('Y-m-d H:i:s'), 1, 0, 0, 0]
+    );
     
-    if (!$userId) {
+    if (!$result) {
         sendErrorResponse('Registrierung fehlgeschlagen');
     }
     
-    // Auto-Login nach Registrierung
-    $user = $db->fetchOne("SELECT * FROM users WHERE id = :id", ['id' => $userId]);
+    // Hole erstellten User
+    $user = $db->fetchOne("SELECT * FROM users WHERE username = ? AND email = ?", [$username, $email]);
     
+    if (!$user) {
+        sendErrorResponse('User konnte nicht erstellt werden');
+    }
+    
+    // Auto-Login nach Registrierung
     session_start();
     $_SESSION['user_id'] = $user['id'];
     $_SESSION['username'] = $user['username'];
@@ -144,45 +136,41 @@ function handleRegisterV2($input, $db) {
     ], 'Registrierung erfolgreich! Willkommen bei RapMarket.de!');
 }
 
-function handleLoginV2($input, $db) {
-    $username = sanitizeInput($input['username'] ?? '');
+function handleLoginV3($input, $db) {
+    $username = trim($input['username'] ?? '');
     $password = $input['password'] ?? '';
     
     if (empty($username) || empty($password)) {
         sendErrorResponse('Username und Passwort sind erforderlich');
     }
     
-    // Debug: Log login attempt
-    error_log("Login attempt - Username: {$username}");
-    
-    // Hole User
+    // Hole User - vereinfachte Abfrage
     $user = $db->fetchOne(
-        "SELECT * FROM users WHERE (username = :login OR email = :login) AND is_active = 1",
-        ['login' => $username]
+        "SELECT * FROM users WHERE username = ? AND is_active = 1",
+        [$username]
     );
     
+    // Falls nicht per Username gefunden, versuche Email
     if (!$user) {
-        error_log("User not found: {$username}");
-        sendErrorResponse('Ungültige Anmeldedaten');
+        $user = $db->fetchOne(
+            "SELECT * FROM users WHERE email = ? AND is_active = 1",
+            [$username]
+        );
     }
     
-    error_log("User found: {$user['username']}, checking password...");
+    if (!$user) {
+        sendErrorResponse('User nicht gefunden');
+    }
     
+    // Password prüfen
     if (!password_verify($password, $user['password'])) {
-        error_log("Password verification failed for user: {$username}");
-        sendErrorResponse('Ungültige Anmeldedaten');
+        sendErrorResponse('Falsches Passwort');
     }
-    
-    error_log("Password verified successfully for user: {$username}");
     
     // Update last_login
-    $db->update('users', 
-        [
-            'last_login' => date('Y-m-d H:i:s'),
-            'login_count' => $user['login_count'] + 1
-        ], 
-        'id = :id', 
-        ['id' => $user['id']]
+    $db->execute(
+        "UPDATE users SET last_login = ?, login_count = login_count + 1 WHERE id = ?",
+        [date('Y-m-d H:i:s'), $user['id']]
     );
     
     // Setze Session
@@ -197,12 +185,12 @@ function handleLoginV2($input, $db) {
             'username' => $user['username'],
             'email' => $user['email'],
             'points' => $user['points'],
-            'last_login' => $user['last_login']
+            'last_login' => date('Y-m-d H:i:s')
         ]
     ], 'Login erfolgreich!');
 }
 
-function handleLogoutV2() {
+function handleLogoutV3() {
     session_start();
     session_destroy();
     setcookie(session_name(), '', time() - 3600, '/');
@@ -210,13 +198,13 @@ function handleLogoutV2() {
     sendSuccessResponse([], 'Logout erfolgreich');
 }
 
-function handleCheckSessionV2($db) {
+function handleCheckSessionV3($db) {
     session_start();
     
     if (isset($_SESSION['user_id']) && !empty($_SESSION['user_id'])) {
         $user = $db->fetchOne(
-            "SELECT id, username, email, points FROM users WHERE id = :id AND is_active = 1",
-            ['id' => $_SESSION['user_id']]
+            "SELECT id, username, email, points FROM users WHERE id = ? AND is_active = 1",
+            [$_SESSION['user_id']]
         );
         
         if ($user) {
@@ -230,6 +218,5 @@ function handleCheckSessionV2($db) {
     sendSuccessResponse(['logged_in' => false]);
 }
 
-// Clean output buffer
 ob_end_clean();
 ?>

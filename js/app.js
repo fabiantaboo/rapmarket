@@ -12,9 +12,9 @@ const appState = {
     authMode: 'login' // 'login' oder 'register'
 };
 
-// API Base URL - Verwende auth_v2.php temporär
+// API Base URL - Verwende auth_v3.php mit verbessertem Login
 const API_BASE = 'api/';
-const AUTH_ENDPOINT = 'auth_v2.php'; // Funktionierende Version ohne Rate Limiting
+const AUTH_ENDPOINT = 'auth_v3.php'; // Verbesserte Version mit besserer Fehlerbehandlung
 
 // Initialize App
 document.addEventListener('DOMContentLoaded', function() {
