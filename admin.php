@@ -61,7 +61,7 @@ $events = $db->fetchAll("
     FROM events e 
     LEFT JOIN bets b ON e.id = b.event_id 
     GROUP BY e.id 
-    ORDER BY e.created_at DESC
+    ORDER BY e.start_date ASC, e.created_at DESC
 ");
 
 function createEvent($data) {
@@ -89,7 +89,8 @@ function createEvent($data) {
             'title' => $title,
             'description' => $description,
             'category' => $category,
-            'event_date' => $eventDate,
+            'start_date' => $eventDate,
+            'end_date' => date('Y-m-d H:i:s', strtotime($eventDate . ' +1 week')), // Event läuft eine Woche
             'min_bet' => $minBet,
             'max_bet' => $maxBet,
             'status' => 'active',
@@ -247,6 +248,26 @@ function deleteEvent($eventId) {
             padding: 20px;
             height: fit-content;
         }
+        
+        .sidebar .form-control,
+        .sidebar .form-select {
+            background-color: white !important;
+            color: #212529 !important;
+            border: 1px solid #ced4da !important;
+        }
+        
+        .sidebar .form-control:focus,
+        .sidebar .form-select:focus {
+            background-color: white !important;
+            color: #212529 !important;
+            border-color: #86b7fe !important;
+            box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25) !important;
+        }
+        
+        .sidebar label {
+            color: #212529 !important;
+            font-weight: 500;
+        }
     </style>
 </head>
 <body>
@@ -402,7 +423,7 @@ function deleteEvent($eventId) {
                                     
                                     <div class="row text-sm">
                                         <div class="col-md-6">
-                                            <small><i class="fas fa-calendar me-1"></i><?= date('d.m.Y H:i', strtotime($event['event_date'])) ?></small><br>
+                                            <small><i class="fas fa-calendar me-1"></i><?= isset($event['start_date']) ? date('d.m.Y H:i', strtotime($event['start_date'])) : 'Kein Datum' ?></small><br>
                                             <small><i class="fas fa-tag me-1"></i><?= ucfirst($event['category']) ?></small><br>
                                             <small><i class="fas fa-coins me-1"></i><?= $event['min_bet'] ?> - <?= $event['max_bet'] ?> Punkte</small>
                                         </div>
