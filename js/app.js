@@ -754,13 +754,18 @@ function updateProfileDisplay() {
 
 async function loadUserStats() {
     try {
+        console.log('Loading user stats...');
         const response = await apiRequest('auth_v3.php', {
             method: 'POST',
             body: { action: 'get_user_stats' }
         });
         
+        console.log('User stats response:', response);
+        
         if (response.stats) {
             const stats = response.stats;
+            console.log('Stats data:', stats);
+            
             document.getElementById('profileTotalBets').textContent = stats.total_bets || 0;
             document.getElementById('profileWins').textContent = stats.wins || 0;
             document.getElementById('profileLosses').textContent = stats.losses || 0;

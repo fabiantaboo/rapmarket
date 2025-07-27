@@ -364,21 +364,26 @@ function handleGetUserStatsV3($db) {
             sendErrorResponse('Benutzer nicht gefunden');
         }
         
-        // Hole Wett-Statistiken
-        $betStats = $db->fetchOne("
-            SELECT 
-                COUNT(*) as total_bets,
-                SUM(CASE WHEN status = 'won' THEN 1 ELSE 0 END) as wins,
-                SUM(CASE WHEN status = 'lost' THEN 1 ELSE 0 END) as losses,
-                SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending,
-                CASE 
-                    WHEN COUNT(*) > 0 THEN 
-                        ROUND((SUM(CASE WHEN status = 'won' THEN 1 ELSE 0 END) * 100.0 / COUNT(*)), 1)
-                    ELSE 0 
-                END as win_rate
-            FROM bets 
-            WHERE user_id = :user_id
-        ", ['user_id' => $userId]);
+        // Hole Wett-Statistiken - prüfe erst ob bets Tabelle existiert
+        $betStats = null;
+        $tableExists = $db->fetchOne("SHOW TABLES LIKE 'bets'");
+        
+        if ($tableExists) {
+            $betStats = $db->fetchOne("
+                SELECT 
+                    COUNT(*) as total_bets,
+                    SUM(CASE WHEN status = 'won' THEN 1 ELSE 0 END) as wins,
+                    SUM(CASE WHEN status = 'lost' THEN 1 ELSE 0 END) as losses,
+                    SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) as pending,
+                    CASE 
+                        WHEN COUNT(*) > 0 THEN 
+                            ROUND((SUM(CASE WHEN status = 'won' THEN 1 ELSE 0 END) * 100.0 / COUNT(*)), 1)
+                        ELSE 0 
+                    END as win_rate
+                FROM bets 
+                WHERE user_id = :user_id
+            ", ['user_id' => $userId]);
+        }
         
         // Hole Rang in der Rangliste
         $rankQuery = $db->fetchOne("
@@ -388,11 +393,11 @@ function handleGetUserStatsV3($db) {
         ", ['points' => $user['points']]);
         
         $stats = [
-            'total_bets' => $betStats['total_bets'] ?? 0,
-            'wins' => $betStats['wins'] ?? 0,
-            'losses' => $betStats['losses'] ?? 0,
-            'pending' => $betStats['pending'] ?? 0,
-            'win_rate' => $betStats['win_rate'] ?? 0,
+            'total_bets' => $betStats ? ($betStats['total_bets'] ?? 0) : 0,
+            'wins' => $betStats ? ($betStats['wins'] ?? 0) : 0,
+            'losses' => $betStats ? ($betStats['losses'] ?? 0) : 0,
+            'pending' => $betStats ? ($betStats['pending'] ?? 0) : 0,
+            'win_rate' => $betStats ? ($betStats['win_rate'] ?? 0) : 0,
             'rank' => $rankQuery['rank'] ?? '-'
         ];
         
