@@ -604,6 +604,16 @@ body::before {
     background: linear-gradient(135deg, var(--card-bg) 0%, rgba(255, 107, 53, 0.1) 100%) !important;
     border: 2px solid rgba(255, 107, 53, 0.3) !important;
     box-shadow: var(--card-shadow-hover) !important;
+    color: var(--text-color) !important;
+}
+
+.profile-card h4 {
+    color: var(--text-color) !important;
+    font-weight: 700;
+}
+
+.profile-card .text-muted {
+    color: var(--text-secondary) !important;
 }
 
 .profile-avatar {
@@ -612,6 +622,10 @@ body::before {
     padding: 2rem;
     display: inline-block;
     box-shadow: var(--glow-effect);
+}
+
+.profile-avatar i {
+    color: var(--text-color) !important;
 }
 
 .profile-stats {
@@ -629,13 +643,13 @@ body::before {
 .stat-value {
     font-size: 1.8rem;
     font-weight: 800;
-    color: var(--accent-color);
+    color: var(--accent-color) !important;
     text-shadow: 0 0 10px rgba(255, 107, 53, 0.3);
 }
 
 .stat-label {
     font-size: 0.9rem;
-    color: var(--text-secondary);
+    color: var(--text-secondary) !important;
     text-transform: uppercase;
     letter-spacing: 0.5px;
 }
@@ -647,6 +661,7 @@ body::before {
     text-align: center;
     border: 1px solid rgba(255, 107, 53, 0.2);
     transition: all 0.3s ease;
+    color: var(--text-color) !important;
 }
 
 .stat-box:hover {
@@ -663,7 +678,7 @@ body::before {
 
 .stat-text {
     font-size: 0.85rem;
-    color: var(--text-secondary);
+    color: var(--text-secondary) !important;
     text-transform: uppercase;
     letter-spacing: 0.5px;
 }
@@ -677,6 +692,7 @@ body::before {
     transition: all 0.3s ease;
     position: relative;
     overflow: hidden;
+    color: var(--text-color) !important;
 }
 
 .bet-card::before {
@@ -711,7 +727,7 @@ body::before {
 }
 
 .bet-option-chosen {
-    color: var(--text-color);
+    color: var(--text-color) !important;
     font-size: 1rem;
 }
 
@@ -719,7 +735,7 @@ body::before {
     display: flex;
     flex-wrap: wrap;
     gap: 1rem;
-    color: var(--text-secondary);
+    color: var(--text-secondary) !important;
     font-size: 0.9rem;
 }
 
@@ -772,6 +788,25 @@ body::before {
 /* Profile Navigation (initially hidden) */
 [data-section="profile"] {
     display: none;
+}
+
+/* Profile Section Text Color Fixes */
+#profile h2,
+#profile h4,
+#profile h5 {
+    color: var(--text-color) !important;
+}
+
+#profile .text-muted {
+    color: var(--text-secondary) !important;
+}
+
+#profile .card-body {
+    color: var(--text-color) !important;
+}
+
+#profile .badge {
+    color: white !important;
 }
 
 /* Responsive Profile Styles */
