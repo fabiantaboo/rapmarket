@@ -866,7 +866,7 @@ function createBetCard(bet) {
             statusText = status;
     }
     
-    const formattedDate = bet.formatted_date || new Date(bet.created_at || bet.placed_at).toLocaleDateString('de-DE', {
+    const formattedDate = bet.formatted_date || new Date(bet.placed_at || bet.created_at).toLocaleDateString('de-DE', {
         day: '2-digit',
         month: '2-digit',
         year: 'numeric',

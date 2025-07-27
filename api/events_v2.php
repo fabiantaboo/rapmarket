@@ -289,27 +289,51 @@ function handlePlaceBet($input, $db, $userId) {
 
 function handleGetUserBets($db, $userId) {
     try {
+        Logger::info('Getting user bets', ['user_id' => $userId]);
+        
+        // Prüfe erst ob bets Tabelle existiert
+        $tableExists = $db->fetchOne("SHOW TABLES LIKE 'bets'");
+        
+        if (!$tableExists) {
+            Logger::warning('Bets table does not exist');
+            sendSuccessResponse(['bets' => []], 'Keine Wetten-Tabelle gefunden');
+            return;
+        }
+        
+        // Prüfe auch ob events und event_options existieren
+        $eventsExists = $db->fetchOne("SHOW TABLES LIKE 'events'");
+        $optionsExists = $db->fetchOne("SHOW TABLES LIKE 'event_options'");
+        
+        if (!$eventsExists || !$optionsExists) {
+            Logger::warning('Required tables missing', [
+                'events_exists' => (bool)$eventsExists,
+                'event_options_exists' => (bool)$optionsExists
+            ]);
+            sendSuccessResponse(['bets' => []], 'Event-Tabellen nicht verfügbar');
+            return;
+        }
+        
         $bets = $db->fetchAll("
             SELECT b.*,
                    e.title as event_title,
                    e.start_date as event_date,
                    e.status as event_status,
                    eo.option_text,
-                   DATE_FORMAT(b.created_at, '%d.%m.%Y %H:%i') as formatted_date
+                   DATE_FORMAT(b.placed_at, '%d.%m.%Y %H:%i') as formatted_date
             FROM bets b
-            JOIN events e ON b.event_id = e.id
-            JOIN event_options eo ON b.option_id = eo.id
+            LEFT JOIN events e ON b.event_id = e.id
+            LEFT JOIN event_options eo ON b.option_id = eo.id
             WHERE b.user_id = :user_id
-            ORDER BY b.created_at DESC
+            ORDER BY b.placed_at DESC
         ", ['user_id' => $userId]);
         
-        Logger::debug('User bets v2 fetched', ['user_id' => $userId, 'count' => count($bets)]);
+        Logger::info('User bets v2 fetched successfully', ['user_id' => $userId, 'count' => count($bets)]);
         
         sendSuccessResponse(['bets' => $bets]);
         
     } catch (Exception $e) {
         Logger::logException($e, ['context' => 'get_user_bets_v2', 'user_id' => $userId]);
-        sendErrorResponse('Fehler beim Laden der Wetten');
+        sendErrorResponse('Fehler beim Laden der Wetten: ' . $e->getMessage());
     }
 }
 
