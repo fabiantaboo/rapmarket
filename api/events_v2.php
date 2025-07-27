@@ -232,9 +232,9 @@ function handlePlaceBet($input, $db, $userId) {
                 'option_id' => $optionId,
                 'amount' => $amount,
                 'odds' => $option['odds'],
-                'potential_win' => $amount * $option['odds'],
-                'status' => 'pending',
-                'created_at' => date('Y-m-d H:i:s')
+                'potential_winnings' => $amount * $option['odds'],
+                'status' => 'active',
+                'placed_at' => date('Y-m-d H:i:s')
             ]);
             
             // Punkte abziehen
@@ -249,12 +249,11 @@ function handlePlaceBet($input, $db, $userId) {
             try {
                 $db->insert('point_transactions', [
                     'user_id' => $userId,
-                    'type' => 'bet_placed',
                     'amount' => -$amount,
-                    'balance_after' => $newPoints,
-                    'description' => "Wette auf Event: {$event['title']}",
+                    'type' => 'debit',
+                    'reason' => "Wette auf Event: {$event['title']}",
                     'reference_id' => $betId,
-                    'created_at' => date('Y-m-d H:i:s')
+                    'reference_type' => 'bet'
                 ]);
             } catch (Exception $e) {
                 // Ignore if point_transactions table doesn't exist
