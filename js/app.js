@@ -573,10 +573,8 @@ function createEventCard(event) {
         </div>
     `;
     
-    // Add interactive functionality
-    const eventCard = card.querySelector('.event-card');
-    const betAmountInput = card.querySelector(`#bet-amount-${event.id}`);
-    const potentialWinDisplay = card.querySelector(`#potential-win-${event.id}`);
+    // Add interactive functionality for multi-bet inputs
+    setupMultiBetInteractions(card, event);
     
     // Bet option selection
     card.querySelectorAll('.bet-option').forEach(option => {
@@ -660,34 +658,136 @@ function createBettingMarkets(event) {
         return '<div class="no-markets">Keine Wettmärkte verfügbar</div>';
     }
     
-    // Gruppiere Options nach Wettart (falls vorhanden)
-    const markets = groupBettingOptions(event.options);
-    
-    return Object.keys(markets).map(marketName => {
-        const options = markets[marketName];
-        const optionsHtml = options.map(option => 
-            `<div class="betting-odd" 
-                  data-event-id="${event.id}" 
-                  data-option-id="${option.id}" 
-                  data-odds="${option.odds}"
-                  data-option-text="${escapeHtml(option.option_text)}">
-                <div class="odd-label">${escapeHtml(option.option_text)}</div>
-                <div class="odd-value">${option.odds}</div>
-            </div>`
-        ).join('');
-        
-        return `
-            <div class="betting-market">
-                <div class="market-header">
-                    <span class="market-name">${marketName}</span>
-                    <span class="market-count">${options.length} Optionen</span>
-                </div>
-                <div class="market-odds">
-                    ${optionsHtml}
-                </div>
+    // Multiple Bet Interface - jede Option kann einzeln besetzt werden
+    const optionsHtml = event.options.map(option => 
+        `<div class="multi-bet-option" 
+              data-event-id="${event.id}" 
+              data-option-id="${option.id}" 
+              data-odds="${option.odds}">
+            <div class="option-info">
+                <div class="option-label">${escapeHtml(option.option_text)}</div>
+                <div class="option-odds">${option.odds}x</div>
             </div>
-        `;
-    }).join('');
+            <div class="bet-controls">
+                <input type="number" 
+                       class="bet-amount-input" 
+                       placeholder="Einsatz" 
+                       min="${event.min_bet || 10}" 
+                       max="${event.max_bet || 1000}" 
+                       id="bet-input-${event.id}-${option.id}">
+                <button class="btn-place-individual-bet" 
+                        onclick="placeIndividualBet(${event.id}, ${option.id})" 
+                        ${!appState.currentUser ? 'disabled' : ''}
+                        id="bet-btn-${event.id}-${option.id}">
+                    <i class="fas fa-plus"></i>
+                </button>
+            </div>
+            <div class="potential-win-display" id="potential-win-${event.id}-${option.id}">
+                Gewinn: <strong>-</strong>
+            </div>
+        </div>`
+    ).join('');
+    
+    return `
+        <div class="betting-market">
+            <div class="market-header">
+                <span class="market-name">Wettoptionen</span>
+                <span class="market-info">Mehrere Wetten möglich</span>
+            </div>
+            <div class="multi-bet-container">
+                ${optionsHtml}
+            </div>
+        </div>
+    `;
+}
+
+// Neue Funktion für individuelle Wetten
+async function placeIndividualBet(eventId, optionId) {
+    if (!appState.currentUser) {
+        showAlert('🔐 Bitte logge dich ein, um zu setzen!', 'warning');
+        return;
+    }
+    
+    const betAmountInput = document.getElementById(`bet-input-${eventId}-${optionId}`);
+    const betButton = document.getElementById(`bet-btn-${eventId}-${optionId}`);
+    
+    const betAmount = parseInt(betAmountInput.value);
+    if (!betAmount || betAmount < 10) {
+        showAlert('💰 Mindestbetrag: 10 Punkte!', 'warning');
+        betAmountInput.focus();
+        return;
+    }
+    
+    if (betAmount > appState.userPoints) {
+        showAlert('❌ Nicht genügend Punkte verfügbar!', 'danger');
+        return;
+    }
+    
+    // Loading state
+    const originalButtonHtml = betButton.innerHTML;
+    betButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+    betButton.disabled = true;
+    
+    try {
+        const response = await apiRequest('events_v2.php', {
+            method: 'POST',
+            body: {
+                action: 'place_bet',
+                event_id: eventId,
+                option_id: optionId,
+                amount: betAmount
+            }
+        });
+        
+        if (response.success) {
+            // Update user points
+            appState.userPoints = response.data.new_points;
+            updatePointsDisplay();
+            
+            // Clear input and show success
+            betAmountInput.value = '';
+            betButton.innerHTML = '<i class="fas fa-check text-success"></i>';
+            
+            // Reset button after delay
+            setTimeout(() => {
+                betButton.innerHTML = originalButtonHtml;
+                betButton.disabled = false;
+            }, 2000);
+            
+            showAlert(`🎉 Wette platziert! Gewinn: ${Math.round(response.data.potential_win)} Punkte`, 'success');
+            
+            // Reload events to show updated data
+            loadEvents();
+            loadProfile(); // Update user stats
+        }
+    } catch (error) {
+        console.error('Bet error:', error);
+        showAlert(`❌ ${error.message}`, 'danger');
+        
+        // Reset button
+        betButton.innerHTML = originalButtonHtml;
+        betButton.disabled = false;
+    }
+}
+
+// Setup interactions for multi-bet interface
+function setupMultiBetInteractions(card, event) {
+    // Add input event listeners for potential win calculation
+    card.querySelectorAll('.bet-amount-input').forEach(input => {
+        input.addEventListener('input', function() {
+            const amount = parseInt(this.value) || 0;
+            const optionId = this.id.split('-').pop();
+            const odds = parseFloat(this.closest('.multi-bet-option').getAttribute('data-odds'));
+            const potentialWin = amount * odds;
+            
+            const winDisplay = document.getElementById(`potential-win-${event.id}-${optionId}`);
+            if (winDisplay && amount > 0) {
+                winDisplay.innerHTML = `Gewinn: <strong>${Math.round(potentialWin)} Punkte</strong>`;
+            } else if (winDisplay) {
+                winDisplay.innerHTML = `Gewinn: <strong>-</strong>`;
+            }
+        });
+    });
 }
 
 function groupBettingOptions(options) {

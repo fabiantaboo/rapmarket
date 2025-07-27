@@ -211,14 +211,28 @@ function handlePlaceBet($input, $db, $userId) {
             sendErrorResponse('Nicht genügend Punkte');
         }
         
-        // Prüfe ob User bereits auf dieses Event gesetzt hat
+        // Prüfe ob User bereits auf diese spezifische Option gesetzt hat
         $existingBet = $db->fetchOne(
-            "SELECT * FROM bets WHERE user_id = :user_id AND event_id = :event_id",
-            ['user_id' => $userId, 'event_id' => $eventId]
+            "SELECT * FROM bets WHERE user_id = :user_id AND event_id = :event_id AND option_id = :option_id",
+            ['user_id' => $userId, 'event_id' => $eventId, 'option_id' => $optionId]
         );
         
         if ($existingBet) {
-            sendErrorResponse('Du hast bereits auf dieses Event gesetzt');
+            sendErrorResponse('Du hast bereits auf diese Option gesetzt');
+        }
+        
+        // Berechne Gesamteinsatz des Users für dieses Event
+        $totalUserBets = $db->fetchOne(
+            "SELECT SUM(amount) as total FROM bets WHERE user_id = :user_id AND event_id = :event_id",
+            ['user_id' => $userId, 'event_id' => $eventId]
+        );
+        
+        $currentTotal = $totalUserBets['total'] ?? 0;
+        $newTotal = $currentTotal + $amount;
+        
+        // Prüfe ob Gesamteinsatz das Maximum überschreitet
+        if ($newTotal > $event['max_bet']) {
+            sendErrorResponse("Gesamteinsatz würde Maximum von {$event['max_bet']} Punkten überschreiten (aktuell: {$currentTotal})");
         }
         
         // Transaction starten
