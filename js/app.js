@@ -766,16 +766,24 @@ async function placeBet(eventId) {
         });
         
         if (response.success) {
-            // Update user points
-            appState.userPoints = response.data.new_points;
-            updatePointsDisplay();
+            // Update user points - handle different response formats
+            const newPoints = response.data?.new_points || response.new_points;
+            const potentialWin = response.data?.potential_win || response.potential_win;
+            
+            if (newPoints !== undefined) {
+                appState.userPoints = newPoints;
+                updatePointsDisplay();
+            }
             
             // Success animation
             betButton.innerHTML = '<i class="fas fa-check me-2"></i>Wette platziert!';
             betButton.className = 'btn btn-success w-100';
             
             // Show success message with details
-            showAlert(`🎉 Wette platziert! Gewinn: ${Math.round(response.data.potential_win)} Punkte`, 'success');
+            const winAmount = potentialWin ? Math.round(potentialWin) : 'unbekannt';
+            showAlert(`🎉 Wette platziert! Möglicher Gewinn: ${winAmount} Punkte`, 'success');
+        } else {
+            throw new Error(response.message || 'Unbekannter Fehler beim Platzieren der Wette');
         }
         
         // Reset form after delay but allow more bets
