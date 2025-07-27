@@ -12,7 +12,7 @@ const appState = {
     authMode: 'login', // 'login' oder 'register'
     currentBetFilter: 'all',
     currentCategory: 'all',
-    currentEventFilter: 'live'
+    currentEventFilter: 'all'
 };
 
 // API Base URL - Verwende auth_v3.php mit verbessertem Login
