@@ -778,19 +778,23 @@ async function loadUserBets() {
     if (!container) return;
     
     try {
+        console.log('Loading user bets...');
         const response = await apiRequest('events_v2.php', {
             method: 'POST',
             body: { action: 'get_user_bets' }
         });
         
+        console.log('User bets response:', response);
         appState.userBets = response.bets || [];
         displayUserBets();
         
     } catch (error) {
+        console.error('Error loading user bets:', error);
         container.innerHTML = `
             <div class="text-center text-danger">
                 <i class="fas fa-exclamation-circle fa-3x mb-3"></i>
                 <p>Fehler beim Laden deiner Wetten: ${error.message}</p>
+                <small>Schaue in die Entwicklertools für weitere Details.</small>
             </div>
         `;
     }
@@ -805,10 +809,11 @@ function displayUserBets() {
     // Filter anwenden
     if (appState.currentBetFilter !== 'all') {
         filteredBets = appState.userBets.filter(bet => {
+            const status = bet.status || bet.bet_status || 'active';
             switch (appState.currentBetFilter) {
-                case 'pending': return bet.status === 'pending';
-                case 'won': return bet.status === 'won';
-                case 'lost': return bet.status === 'lost';
+                case 'pending': return status === 'pending' || status === 'active';
+                case 'won': return status === 'won' || status === 'winning';
+                case 'lost': return status === 'lost' || status === 'losing';
                 default: return true;
             }
         });
@@ -833,25 +838,35 @@ function createBetCard(bet) {
     let statusIcon = '';
     let statusText = '';
     
-    switch (bet.status) {
+    // Behandle verschiedene mögliche Status-Werte
+    const status = bet.status || bet.bet_status || 'active';
+    
+    switch (status) {
+        case 'active':
         case 'pending':
             statusClass = 'warning';
             statusIcon = 'clock';
             statusText = 'Offen';
             break;
         case 'won':
+        case 'winning':
             statusClass = 'success';
             statusIcon = 'check-circle';
             statusText = 'Gewonnen';
             break;
         case 'lost':
+        case 'losing':
             statusClass = 'danger';
             statusIcon = 'times-circle';
             statusText = 'Verloren';
             break;
+        default:
+            statusClass = 'secondary';
+            statusIcon = 'question';
+            statusText = status;
     }
     
-    const formattedDate = new Date(bet.created_at).toLocaleDateString('de-DE', {
+    const formattedDate = bet.formatted_date || new Date(bet.created_at || bet.placed_at).toLocaleDateString('de-DE', {
         day: '2-digit',
         month: '2-digit',
         year: 'numeric',
@@ -860,7 +875,7 @@ function createBetCard(bet) {
     });
     
     const potentialWin = Math.round(bet.amount * bet.odds);
-    const actualWin = bet.status === 'won' ? potentialWin : 0;
+    const actualWin = (status === 'won' || status === 'winning') ? potentialWin : 0;
     
     return `
         <div class="bet-card mb-3">
@@ -894,10 +909,10 @@ function createBetCard(bet) {
                     </div>
                     <div class="col-md-4 text-end">
                         <div class="bet-payout">
-                            ${bet.status === 'pending' ? 
+                            ${(status === 'active' || status === 'pending') ? 
                                 `<div class="text-muted">Möglicher Gewinn</div>
                                  <div class="text-warning fs-5 fw-bold">+${potentialWin.toLocaleString()}</div>` :
-                                bet.status === 'won' ?
+                                (status === 'won' || status === 'winning') ?
                                 `<div class="text-success">Gewinn erhalten</div>
                                  <div class="text-success fs-5 fw-bold">+${actualWin.toLocaleString()}</div>` :
                                 `<div class="text-danger">Verlust</div>

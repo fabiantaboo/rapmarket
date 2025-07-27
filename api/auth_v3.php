@@ -96,6 +96,11 @@ try {
             handleCheckSessionV3($db);
             break;
             
+        case 'get_user_stats':
+            Logger::debug('Get user stats');
+            handleGetUserStatsV3($db);
+            break;
+            
         default:
             Logger::warning('Invalid action', ['action' => $action]);
             sendErrorResponse('Ungültige Aktion');
@@ -337,6 +342,68 @@ function handleCheckSessionV3($db) {
     }
     
     sendSuccessResponse(['logged_in' => false]);
+}
+
+function handleGetUserStatsV3($db) {
+    session_start();
+    
+    if (!isset($_SESSION['user_id'])) {
+        sendErrorResponse('Nicht angemeldet');
+    }
+    
+    $userId = $_SESSION['user_id'];
+    
+    try {
+        // Hole Benutzer-Statistiken
+        $user = $db->fetchOne(
+            "SELECT id, username, points, created_at FROM users WHERE id = :id",
+            ['id' => $userId]
+        );
+        
+        if (!$user) {
+            sendErrorResponse('Benutzer nicht gefunden');
+        }
+        
+        // Hole Wett-Statistiken
+        $betStats = $db->fetchOne("
+            SELECT 
+                COUNT(*) as total_bets,
+                SUM(CASE WHEN status = 'won' THEN 1 ELSE 0 END) as wins,
+                SUM(CASE WHEN status = 'lost' THEN 1 ELSE 0 END) as losses,
+                SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending,
+                CASE 
+                    WHEN COUNT(*) > 0 THEN 
+                        ROUND((SUM(CASE WHEN status = 'won' THEN 1 ELSE 0 END) * 100.0 / COUNT(*)), 1)
+                    ELSE 0 
+                END as win_rate
+            FROM bets 
+            WHERE user_id = :user_id
+        ", ['user_id' => $userId]);
+        
+        // Hole Rang in der Rangliste
+        $rankQuery = $db->fetchOne("
+            SELECT COUNT(*) + 1 as rank 
+            FROM users 
+            WHERE points > :points AND is_active = 1
+        ", ['points' => $user['points']]);
+        
+        $stats = [
+            'total_bets' => $betStats['total_bets'] ?? 0,
+            'wins' => $betStats['wins'] ?? 0,
+            'losses' => $betStats['losses'] ?? 0,
+            'pending' => $betStats['pending'] ?? 0,
+            'win_rate' => $betStats['win_rate'] ?? 0,
+            'rank' => $rankQuery['rank'] ?? '-'
+        ];
+        
+        Logger::info('User stats loaded', ['user_id' => $userId, 'stats' => $stats]);
+        
+        sendSuccessResponse(['stats' => $stats]);
+        
+    } catch (Exception $e) {
+        Logger::error('Error loading user stats', ['user_id' => $userId, 'error' => $e->getMessage()]);
+        sendErrorResponse('Fehler beim Laden der Statistiken');
+    }
 }
 
 ob_end_clean();
