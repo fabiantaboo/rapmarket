@@ -335,8 +335,22 @@ function resolveEvent($data) {
                 ], 'id = :id', ['id' => $bet['id']]);
                 
                 // Punkte dem User gutschreiben
+                $currentUser = $db->fetchOne("SELECT points FROM users WHERE id = :id", ['id' => $bet['user_id']]);
+                $currentPoints = (int)$currentUser['points'];
+                $winnings = (int)$winnings;
+                $newPoints = $currentPoints + $winnings;
+                
+                Logger::debug('Points calculation', [
+                    'user_id' => $bet['user_id'],
+                    'current_points' => $currentPoints,
+                    'winnings' => $winnings,
+                    'new_points' => $newPoints,
+                    'bet_amount' => $bet['amount'],
+                    'bet_odds' => $bet['odds']
+                ]);
+                
                 $db->update('users', 
-                    ['points' => 'points + ' . $winnings], 
+                    ['points' => $newPoints], 
                     'id = :id', 
                     ['id' => $bet['user_id']]
                 );
