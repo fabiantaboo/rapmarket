@@ -92,10 +92,109 @@
 
     <!-- Events Section -->
     <section id="events" class="section-content d-none">
-        <div class="container">
-            <h2 class="text-center mb-5">Aktuelle Events</h2>
-            <div class="row" id="eventsContainer">
-                <!-- Events werden hier dynamisch geladen -->
+        <div class="container-fluid">
+            <div class="row">
+                <!-- Sidebar - Kategorien -->
+                <div class="col-md-3">
+                    <div class="betting-sidebar">
+                        <h5 class="sidebar-title">
+                            <i class="fas fa-filter me-2"></i>Kategorien
+                        </h5>
+                        <div class="category-filters">
+                            <div class="category-item active" data-category="all">
+                                <i class="fas fa-globe-americas me-2"></i>
+                                <span>Alle Events</span>
+                                <span class="event-count" id="count-all">0</span>
+                            </div>
+                            <div class="category-item" data-category="battle">
+                                <i class="fas fa-fist-raised me-2"></i>
+                                <span>Rap Battles</span>
+                                <span class="event-count" id="count-battle">0</span>
+                            </div>
+                            <div class="category-item" data-category="charts">
+                                <i class="fas fa-chart-line me-2"></i>
+                                <span>Charts</span>
+                                <span class="event-count" id="count-charts">0</span>
+                            </div>
+                            <div class="category-item" data-category="streaming">
+                                <i class="fas fa-play me-2"></i>
+                                <span>Streaming</span>
+                                <span class="event-count" id="count-streaming">0</span>
+                            </div>
+                            <div class="category-item" data-category="tour">
+                                <i class="fas fa-microphone me-2"></i>
+                                <span>Tours & Konzerte</span>
+                                <span class="event-count" id="count-tour">0</span>
+                            </div>
+                            <div class="category-item" data-category="awards">
+                                <i class="fas fa-trophy me-2"></i>
+                                <span>Awards</span>
+                                <span class="event-count" id="count-awards">0</span>
+                            </div>
+                        </div>
+                        
+                        <div class="betting-info mt-4">
+                            <h6>
+                                <i class="fas fa-info-circle me-2"></i>Live Statistiken
+                            </h6>
+                            <div class="stats-grid">
+                                <div class="stat-item">
+                                    <div class="stat-value" id="totalEvents">0</div>
+                                    <div class="stat-label">Events</div>
+                                </div>
+                                <div class="stat-item">
+                                    <div class="stat-value" id="totalBets">0</div>
+                                    <div class="stat-label">Wetten</div>
+                                </div>
+                                <div class="stat-item">
+                                    <div class="stat-value" id="totalVolume">0</div>
+                                    <div class="stat-label">Volumen</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Main Content - Events -->
+                <div class="col-md-9">
+                    <div class="betting-header">
+                        <div class="d-flex justify-content-between align-items-center mb-4">
+                            <div>
+                                <h3 class="events-title">
+                                    <i class="fas fa-fire me-2 text-danger"></i>
+                                    Live Events
+                                </h3>
+                                <p class="events-subtitle">Setze auf deine Lieblings-Rapper und gewinne!</p>
+                            </div>
+                            <div class="betting-controls">
+                                <div class="btn-group" role="group">
+                                    <input type="radio" class="btn-check" name="eventFilter" id="filterLive" checked>
+                                    <label class="btn btn-outline-danger btn-sm" for="filterLive">
+                                        <i class="fas fa-circle me-1"></i>Live
+                                    </label>
+                                    
+                                    <input type="radio" class="btn-check" name="eventFilter" id="filterUpcoming">
+                                    <label class="btn btn-outline-warning btn-sm" for="filterUpcoming">
+                                        <i class="fas fa-clock me-1"></i>Upcoming
+                                    </label>
+                                    
+                                    <input type="radio" class="btn-check" name="eventFilter" id="filterAll">
+                                    <label class="btn btn-outline-primary btn-sm" for="filterAll">
+                                        <i class="fas fa-list me-1"></i>Alle
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="events-grid" id="eventsContainer">
+                        <!-- Events werden hier dynamisch geladen -->
+                        <div class="loading-placeholder">
+                            <div class="spinner-border text-primary" role="status"></div>
+                            <p class="mt-2">Lade Events...</p>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </section>

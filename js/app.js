@@ -317,102 +317,76 @@ async function loadEvents() {
 
 function createEventCard(event) {
     const card = document.createElement('div');
-    card.className = 'col-md-6 col-lg-4 mb-3';
+    card.className = 'betting-event-card mb-3';
     
-    // Status Badge - verbesserte Logik
-    let statusBadge = '';
-    const now = new Date().getTime();
-    const startTime = new Date(event.start_date).getTime();
-    const endTime = new Date(event.end_date).getTime();
+    // Event Status für Sportwetten-Design
+    let statusInfo = getEventStatus(event);
     
-    if (event.status === 'active' && startTime <= now && endTime > now) {
-        statusBadge = '<span class="status-badge status-live">🔴 LIVE</span>';
-    } else if (event.status === 'active' && startTime > now) {
-        statusBadge = '<span class="status-badge status-upcoming">⏰ Startet bald</span>';
-    } else if (event.status === 'active' && endTime <= now) {
-        statusBadge = '<span class="status-badge status-ended">⏹ Beendet</span>';
-    } else if (event.status === 'active') {
-        statusBadge = '<span class="status-badge status-live">✅ Aktiv</span>';
-    } else {
-        statusBadge = '<span class="status-badge status-ended">⏹ Inaktiv</span>';
-    }
+    // Sportwetten-Style Options mit verschiedenen Wettarten
+    const bettingMarkets = createBettingMarkets(event);
     
-    // Event Meta Items
-    const metaItems = [
-        `<div class="event-meta-item">
-            <i class="fas fa-calendar-alt"></i>
-            <span>${event.formatted_event_date || 'Datum folgt'}</span>
-        </div>`,
-        `<div class="event-meta-item">
-            <i class="fas fa-tag"></i>
-            <span>${escapeHtml(event.category || 'Allgemein')}</span>
-        </div>`,
-        `<div class="event-meta-item">
-            <i class="fas fa-coins"></i>
-            <span>${event.min_bet || 10} - ${event.max_bet || 1000} Punkte</span>
-        </div>`,
-        `<div class="event-meta-item">
-            <i class="fas fa-users"></i>
-            <span>${event.bet_count || 0} Wetten</span>
-        </div>`
-    ];
-    
-    // Bet Options
-    const optionsHtml = event.options.map(option => 
-        `<div class="bet-option" data-event-id="${event.id}" data-option-id="${option.id}" data-odds="${option.odds}">
-            <div class="bet-option-text">${escapeHtml(option.option_text)}</div>
-            <div class="bet-option-odds">${option.odds}x</div>
-         </div>`
-    ).join('');
+    // Event Popularity/Volume
+    const totalVolume = event.total_bets_amount || 0;
+    const totalBets = event.bet_count || 0;
     
     card.innerHTML = `
-        <div class="event-card compact">
-            <div class="event-header mb-2">
-                <div class="event-title-compact">${escapeHtml(event.title)}</div>
-                ${statusBadge}
-            </div>
-            
-            <div class="event-meta-compact mb-3">
-                <div class="meta-row">
-                    <i class="fas fa-calendar-alt text-muted"></i>
-                    <span>${event.formatted_event_date || 'Datum folgt'}</span>
+        <div class="sportsbook-event">
+            <!-- Event Header -->
+            <div class="event-header-sport">
+                <div class="event-info">
+                    <div class="event-category">
+                        ${getCategoryIcon(event.category)} ${escapeHtml(event.category?.toUpperCase() || 'RAP')}
+                    </div>
+                    <h4 class="event-title-sport">${escapeHtml(event.title)}</h4>
+                    <div class="event-meta-sport">
+                        <span class="event-time">
+                            <i class="fas fa-clock me-1"></i>
+                            ${event.formatted_event_date || 'TBD'}
+                        </span>
+                        <span class="event-volume">
+                            <i class="fas fa-chart-bar me-1"></i>
+                            ${totalVolume.toLocaleString()} Punkte
+                        </span>
+                        <span class="event-participants">
+                            <i class="fas fa-users me-1"></i>
+                            ${totalBets} Wetten
+                        </span>
+                    </div>
                 </div>
-                <div class="meta-row">
-                    <i class="fas fa-coins text-warning"></i>
-                    <span>${event.min_bet || 10}-${event.max_bet || 1000} Punkte</span>
+                <div class="event-status-sport">
+                    ${statusInfo.badge}
+                    ${statusInfo.isLive ? '<div class="live-indicator"></div>' : ''}
                 </div>
             </div>
             
-            <div class="bet-options-compact mb-3">
-                ${optionsHtml}
+            <!-- Betting Markets -->
+            <div class="betting-markets">
+                ${bettingMarkets}
             </div>
             
-            <div class="bet-input-compact">
-                <div class="input-group mb-2">
+            <!-- Quick Bet Section -->
+            <div class="quick-bet-section" style="display: none;" id="quick-bet-${event.id}">
+                <div class="selected-bet-info">
+                    <span class="selected-option" id="selected-option-${event.id}">-</span>
+                    <span class="selected-odds" id="selected-odds-${event.id}">-</span>
+                </div>
+                <div class="bet-input-row">
                     <input type="number" 
-                           class="form-control bet-amount-input-compact" 
+                           class="bet-amount-input-sport" 
                            placeholder="Einsatz" 
                            min="${event.min_bet || 10}" 
                            max="${Math.min(event.max_bet || 1000, appState.userPoints)}" 
                            id="bet-amount-${event.id}">
-                    <span class="input-group-text">Punkte</span>
+                    <span class="potential-win" id="potential-win-${event.id}">
+                        Gewinn: <strong>-</strong>
+                    </span>
+                    <button class="btn-place-bet" 
+                            onclick="placeBet(${event.id})" 
+                            ${!appState.currentUser ? 'disabled' : ''}
+                            id="bet-btn-${event.id}">
+                        Setzen
+                    </button>
                 </div>
-                
-                <div class="potential-win-compact mb-2" id="potential-win-${event.id}">
-                    Möglicher Gewinn: <span class="text-success fw-bold">-</span>
-                </div>
-                
-                <button class="btn bet-button-compact w-100" 
-                        onclick="placeBet(${event.id})" 
-                        ${!appState.currentUser ? 'disabled' : ''}
-                        id="bet-btn-${event.id}">
-                    <i class="fas fa-rocket me-1"></i>Setzen
-                </button>
-                
-                ${!appState.currentUser ? 
-                    '<div class="text-center mt-2"><small class="text-warning">🔐 Login erforderlich</small></div>' : 
-                    '<div class="text-center mt-1"><small class="text-muted">Verfügbar: <span class="text-success">' + appState.userPoints.toLocaleString() + '</span></small></div>'
-                }
             </div>
         </div>
     `;
@@ -447,7 +421,131 @@ function createEventCard(event) {
         betAmountInput.addEventListener('input', () => updatePotentialWinnings(event.id));
     }
     
+    // Setup interactions for sportsbook design
+    setupSportsbookInteractions(card, event);
+    
     return card;
+}
+
+// Helper Functions für Sportwetten-Design
+function getEventStatus(event) {
+    const now = new Date().getTime();
+    const startTime = new Date(event.start_date).getTime();
+    const endTime = new Date(event.end_date).getTime();
+    
+    if (event.status === 'active' && startTime <= now && endTime > now) {
+        return {
+            badge: '<span class="live-badge">🔴 LIVE</span>',
+            isLive: true,
+            status: 'live'
+        };
+    } else if (event.status === 'active' && startTime > now) {
+        const timeUntilStart = Math.floor((startTime - now) / (1000 * 60 * 60)); // hours
+        return {
+            badge: `<span class="upcoming-badge">⏰ in ${timeUntilStart}h</span>`,
+            isLive: false,
+            status: 'upcoming'
+        };
+    } else if (event.status === 'active') {
+        return {
+            badge: '<span class="active-badge">✅ AKTIV</span>',
+            isLive: false,
+            status: 'active'
+        };
+    } else {
+        return {
+            badge: '<span class="ended-badge">⏹ BEENDET</span>',
+            isLive: false,
+            status: 'ended'
+        };
+    }
+}
+
+function getCategoryIcon(category) {
+    const icons = {
+        'battle': '<i class="fas fa-fist-raised"></i>',
+        'charts': '<i class="fas fa-chart-line"></i>',
+        'streaming': '<i class="fas fa-play"></i>',
+        'tour': '<i class="fas fa-microphone"></i>',
+        'awards': '<i class="fas fa-trophy"></i>',
+        'general': '<i class="fas fa-music"></i>'
+    };
+    return icons[category] || icons.general;
+}
+
+function createBettingMarkets(event) {
+    if (!event.options || event.options.length === 0) {
+        return '<div class="no-markets">Keine Wettmärkte verfügbar</div>';
+    }
+    
+    // Gruppiere Options nach Wettart (falls vorhanden)
+    const markets = groupBettingOptions(event.options);
+    
+    return Object.keys(markets).map(marketName => {
+        const options = markets[marketName];
+        const optionsHtml = options.map(option => 
+            `<div class="betting-odd" 
+                  data-event-id="${event.id}" 
+                  data-option-id="${option.id}" 
+                  data-odds="${option.odds}"
+                  data-option-text="${escapeHtml(option.option_text)}">
+                <div class="odd-label">${escapeHtml(option.option_text)}</div>
+                <div class="odd-value">${option.odds}</div>
+            </div>`
+        ).join('');
+        
+        return `
+            <div class="betting-market">
+                <div class="market-header">
+                    <span class="market-name">${marketName}</span>
+                    <span class="market-count">${options.length} Optionen</span>
+                </div>
+                <div class="market-odds">
+                    ${optionsHtml}
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function groupBettingOptions(options) {
+    // Einfache Gruppierung - später kann das erweitert werden
+    return {
+        'Hauptwette': options
+    };
+}
+
+function setupSportsbookInteractions(card, event) {
+    // Betting odds click handlers
+    card.querySelectorAll('.betting-odd').forEach(odd => {
+        odd.addEventListener('click', function() {
+            // Remove previous selections
+            card.querySelectorAll('.betting-odd').forEach(o => o.classList.remove('selected'));
+            
+            // Add selection to clicked odd
+            this.classList.add('selected');
+            
+            // Show quick bet section
+            const quickBetSection = card.querySelector(`#quick-bet-${event.id}`);
+            const selectedOption = card.querySelector(`#selected-option-${event.id}`);
+            const selectedOdds = card.querySelector(`#selected-odds-${event.id}`);
+            
+            if (quickBetSection && selectedOption && selectedOdds) {
+                quickBetSection.style.display = 'block';
+                selectedOption.textContent = this.getAttribute('data-option-text');
+                selectedOdds.textContent = this.getAttribute('data-odds') + 'x';
+                
+                // Update potential winnings
+                updatePotentialWinnings(event.id);
+            }
+        });
+    });
+    
+    // Bet amount input handler
+    const betAmountInput = card.querySelector(`#bet-amount-${event.id}`);
+    if (betAmountInput) {
+        betAmountInput.addEventListener('input', () => updatePotentialWinnings(event.id));
+    }
 }
 
 function updatePotentialWinnings(eventId) {
@@ -461,9 +559,9 @@ function updatePotentialWinnings(eventId) {
         const potentialWin = Math.round(amount * odds);
         
         if (amount > 0) {
-            winDisplay.innerHTML = `Möglicher Gewinn: <span class="text-success fw-bold">+${potentialWin.toLocaleString()}</span>`;
+            winDisplay.innerHTML = `Gewinn: <strong>+${potentialWin.toLocaleString()}</strong>`;
         } else {
-            winDisplay.innerHTML = `Möglicher Gewinn: <span class="text-success fw-bold">-</span>`;
+            winDisplay.innerHTML = `Gewinn: <strong>-</strong>`;
         }
     }
 }
