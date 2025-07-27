@@ -296,7 +296,14 @@ function resolveEvent($data) {
     
     try {
         $eventId = (int)$data['event_id'];
-        $winningOptionId = (int)$data['winning_option'];
+        $winningOptions = isset($data['winning_options']) ? $data['winning_options'] : [$data['winning_option']];
+        
+        // Ensure winning options are integers
+        $winningOptions = array_map('intval', array_filter($winningOptions));
+        
+        if (empty($winningOptions)) {
+            return ['success' => false, 'message' => 'Mindestens eine gewinnende Option muss ausgewählt werden'];
+        }
         
         $event = $db->fetchOne("SELECT * FROM events WHERE id = :id", ['id' => $eventId]);
         if (!$event) {
@@ -307,9 +314,12 @@ function resolveEvent($data) {
             return ['success' => false, 'message' => 'Event bereits aufgelöst'];
         }
         
-        // Markiere gewinnende Option
+        // Markiere alle gewinnenden Optionen
         $db->update('event_options', ['is_winning_option' => 0], 'event_id = :id', ['id' => $eventId]);
-        $db->update('event_options', ['is_winning_option' => 1], 'id = :id', ['id' => $winningOptionId]);
+        
+        foreach ($winningOptions as $optionId) {
+            $db->update('event_options', ['is_winning_option' => 1], 'id = :id', ['id' => $optionId]);
+        }
         
         // Update Event Status
         $db->update('events', [
@@ -321,7 +331,7 @@ function resolveEvent($data) {
         $bets = $db->fetchAll("SELECT * FROM bets WHERE event_id = :id", ['id' => $eventId]);
         
         foreach ($bets as $bet) {
-            if ($bet['option_id'] == $winningOptionId) {
+            if (in_array($bet['option_id'], $winningOptions)) {
                 // Gewinnende Wette
                 $winnings = $bet['amount'] * $bet['odds'];
                 $db->update('bets', [
@@ -643,6 +653,21 @@ function deleteCategory($categoryKey) {
             gap: 10px;
             margin-bottom: 10px;
             align-items: center;
+        }
+        
+        /* Fix text contrast issues */
+        .form-check-label,
+        .card-body p,
+        .card-body small,
+        .card-body div,
+        .alert p,
+        .alert div {
+            color: var(--text-color) !important;
+        }
+        
+        .form-check-input:checked {
+            background-color: var(--accent-color);
+            border-color: var(--accent-color);
         }
     </style>
 </head>
@@ -1075,17 +1100,18 @@ function deleteCategory($categoryKey) {
                                                 <small class="text-muted"><?= $event['bet_count'] ?> Wetten • <?= number_format($event['total_bets']) ?> Punkte</small>
                                             </div>
                                             <div class="card-body">
-                                                <form method="POST" onsubmit="return confirm('Event wirklich auflösen? Dies kann nicht rückgängig gemacht werden!')">
+                                                <form method="POST" onsubmit="return validateResolution(this)">
                                                     <input type="hidden" name="action" value="resolve_event">
                                                     <input type="hidden" name="event_id" value="<?= $event['id'] ?>">
                                                     
                                                     <div class="mb-3">
-                                                        <label class="form-label">Gewinnende Option:</label>
+                                                        <label class="form-label">Gewinnende Option(en):</label>
+                                                        <small class="text-muted d-block mb-2">Eine oder mehrere Optionen können als Gewinner markiert werden</small>
                                                         <?php foreach ($options as $option): ?>
                                                             <div class="form-check">
-                                                                <input class="form-check-input" type="radio" 
-                                                                       name="winning_option" value="<?= $option['id'] ?>" 
-                                                                       id="option_<?= $option['id'] ?>" required>
+                                                                <input class="form-check-input winning-option-checkbox" type="checkbox" 
+                                                                       name="winning_options[]" value="<?= $option['id'] ?>" 
+                                                                       id="option_<?= $option['id'] ?>">
                                                                 <label class="form-check-label" for="option_<?= $option['id'] ?>">
                                                                     <?= htmlspecialchars($option['option_text']) ?> 
                                                                     <span class="text-muted">(<?= $option['odds'] ?>x)</span>
@@ -1228,6 +1254,15 @@ function deleteCategory($categoryKey) {
             document.getElementById('pointsUserId').value = userId;
             document.getElementById('pointsUsername').textContent = username;
             new bootstrap.Modal(document.getElementById('addPointsModal')).show();
+        }
+        
+        function validateResolution(form) {
+            const checkboxes = form.querySelectorAll('.winning-option-checkbox:checked');
+            if (checkboxes.length === 0) {
+                alert('Bitte wähle mindestens eine gewinnende Option aus!');
+                return false;
+            }
+            return confirm('Event wirklich auflösen? Dies kann nicht rückgängig gemacht werden!');
         }
     </script>
 </body>
