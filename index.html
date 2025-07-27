@@ -100,36 +100,16 @@
                         <h5 class="sidebar-title">
                             <i class="fas fa-filter me-2"></i>Kategorien
                         </h5>
-                        <div class="category-filters">
+                        <div class="category-filters" id="categoryFilters">
                             <div class="category-item active" data-category="all">
                                 <i class="fas fa-globe-americas me-2"></i>
                                 <span>Alle Events</span>
                                 <span class="event-count" id="count-all">0</span>
                             </div>
-                            <div class="category-item" data-category="battle">
-                                <i class="fas fa-fist-raised me-2"></i>
-                                <span>Rap Battles</span>
-                                <span class="event-count" id="count-battle">0</span>
-                            </div>
-                            <div class="category-item" data-category="charts">
-                                <i class="fas fa-chart-line me-2"></i>
-                                <span>Charts</span>
-                                <span class="event-count" id="count-charts">0</span>
-                            </div>
-                            <div class="category-item" data-category="streaming">
-                                <i class="fas fa-play me-2"></i>
-                                <span>Streaming</span>
-                                <span class="event-count" id="count-streaming">0</span>
-                            </div>
-                            <div class="category-item" data-category="tour">
-                                <i class="fas fa-microphone me-2"></i>
-                                <span>Tours & Konzerte</span>
-                                <span class="event-count" id="count-tour">0</span>
-                            </div>
-                            <div class="category-item" data-category="awards">
-                                <i class="fas fa-trophy me-2"></i>
-                                <span>Awards</span>
-                                <span class="event-count" id="count-awards">0</span>
+                            <!-- Dynamische Kategorien werden hier geladen -->
+                            <div class="text-center p-3" id="categoryLoading">
+                                <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+                                <small class="d-block mt-2">Lade Kategorien...</small>
                             </div>
                         </div>
                         

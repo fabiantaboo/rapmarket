@@ -29,6 +29,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 function initializeApp() {
     console.log('RapMarket.de initialized');
+    loadCategories();
 }
 
 function setupEventListeners() {
@@ -404,17 +405,70 @@ function displayFilteredEvents() {
     updateLiveStats(filteredEvents);
 }
 
-function updateEventCounts() {
-    const categories = ['all', 'battle', 'charts', 'streaming', 'tour', 'awards'];
-    
-    categories.forEach(category => {
-        const count = category === 'all' 
-            ? appState.events.length 
-            : appState.events.filter(event => event.category === category).length;
+// Load dynamic categories from API
+async function loadCategories() {
+    try {
+        const response = await fetch('api/categories.php');
+        const data = await response.json();
         
-        const countElement = document.getElementById(`count-${category}`);
-        if (countElement) {
-            countElement.textContent = count;
+        if (data.success) {
+            const categoryFilters = document.getElementById('categoryFilters');
+            const loadingElement = document.getElementById('categoryLoading');
+            
+            if (loadingElement) {
+                loadingElement.remove();
+            }
+            
+            // Add dynamic categories
+            data.categories.forEach(category => {
+                const categoryItem = document.createElement('div');
+                categoryItem.className = 'category-item';
+                categoryItem.setAttribute('data-category', category.key);
+                categoryItem.innerHTML = `
+                    <i class="${category.icon} me-2"></i>
+                    <span>${category.name}</span>
+                    <span class="event-count" id="count-${category.key}">0</span>
+                `;
+                categoryFilters.appendChild(categoryItem);
+            });
+            
+            // Re-setup event listeners for new categories
+            setupEventFilters();
+            
+            console.log('Categories loaded:', data.categories);
+        } else {
+            console.error('Failed to load categories:', data.error);
+            const loadingElement = document.getElementById('categoryLoading');
+            if (loadingElement) {
+                loadingElement.innerHTML = '<small class="text-muted">Keine Kategorien verfügbar</small>';
+            }
+        }
+    } catch (error) {
+        console.error('Error loading categories:', error);
+        const loadingElement = document.getElementById('categoryLoading');
+        if (loadingElement) {
+            loadingElement.innerHTML = '<small class="text-danger">Fehler beim Laden der Kategorien</small>';
+        }
+    }
+}
+
+function updateEventCounts() {
+    // Update "all" category count
+    const allCount = appState.events.length;
+    const allCountElement = document.getElementById('count-all');
+    if (allCountElement) {
+        allCountElement.textContent = allCount;
+    }
+    
+    // Update dynamic category counts
+    document.querySelectorAll('[data-category]').forEach(categoryItem => {
+        const category = categoryItem.getAttribute('data-category');
+        if (category !== 'all') {
+            const count = appState.events.filter(event => event.category === category).length;
+            const countElement = document.getElementById(`count-${category}`);
+            if (countElement) {
+                countElement.textContent = count;
+            }
         }
     });
 }
