@@ -249,7 +249,7 @@ async function loadEvents() {
     setLoading(true);
     
     try {
-        const response = await apiRequest('events.php?status=active');
+        const response = await apiRequest('events_v2.php?status=active');
         appState.events = response.events;
         
         container.innerHTML = '';
@@ -444,7 +444,7 @@ async function placeBet(eventId) {
     betButton.disabled = true;
     
     try {
-        const response = await apiRequest('events.php', {
+        const response = await apiRequest('events_v2.php', {
             method: 'POST',
             body: {
                 action: 'place_bet',

@@ -80,7 +80,7 @@ function handleGetEvents($db) {
     try {
         $sql = "
             SELECT e.*,
-                   DATE_FORMAT(e.event_date, '%d.%m.%Y %H:%i') as formatted_event_date,
+                   DATE_FORMAT(e.start_date, '%d.%m.%Y %H:%i') as formatted_event_date,
                    DATE_FORMAT(e.created_at, '%d.%m.%Y') as formatted_created_date,
                    u.username as creator_name
             FROM events e
@@ -100,7 +100,7 @@ function handleGetEvents($db) {
             $params['category'] = $category;
         }
         
-        $sql .= " ORDER BY e.event_date ASC, e.created_at DESC";
+        $sql .= " ORDER BY e.start_date ASC, e.created_at DESC";
         
         if ($limit > 0) {
             $sql .= " LIMIT :limit";
@@ -126,8 +126,8 @@ function handleGetEvents($db) {
             $event['total_bets'] = (int)($betStats['total_amount'] ?? 0);
             
             // Event-Status für Frontend
-            $event['is_upcoming'] = strtotime($event['event_date']) > time();
-            $event['is_live'] = strtotime($event['event_date']) <= time() && $event['status'] === 'active';
+            $event['is_upcoming'] = strtotime($event['start_date']) > time();
+            $event['is_live'] = strtotime($event['start_date']) <= time() && strtotime($event['end_date']) > time() && $event['status'] === 'active';
         }
         
         Logger::info('Events fetched successfully', ['count' => count($events)]);
