@@ -576,34 +576,6 @@ function createEventCard(event) {
     // Add interactive functionality for multi-bet inputs
     setupMultiBetInteractions(card, event);
     
-    // Bet option selection
-    card.querySelectorAll('.bet-option').forEach(option => {
-        option.addEventListener('click', function() {
-            if (!appState.currentUser) {
-                showAlert('🔐 Bitte logge dich ein, um zu setzen!', 'warning');
-                return;
-            }
-            
-            // Remove selection from siblings
-            this.parentNode.querySelectorAll('.bet-option').forEach(opt => 
-                opt.classList.remove('selected'));
-            
-            // Add selection to clicked option
-            this.classList.add('selected');
-            
-            // Update potential winnings
-            updatePotentialWinnings(event.id);
-        });
-    });
-    
-    // Update potential winnings on amount change
-    if (betAmountInput) {
-        betAmountInput.addEventListener('input', () => updatePotentialWinnings(event.id));
-    }
-    
-    // Setup interactions for sportsbook design
-    setupSportsbookInteractions(card, event);
-    
     return card;
 }
 
@@ -797,56 +769,6 @@ function groupBettingOptions(options) {
     };
 }
 
-function setupSportsbookInteractions(card, event) {
-    // Betting odds click handlers
-    card.querySelectorAll('.betting-odd').forEach(odd => {
-        odd.addEventListener('click', function() {
-            // Remove previous selections
-            card.querySelectorAll('.betting-odd').forEach(o => o.classList.remove('selected'));
-            
-            // Add selection to clicked odd
-            this.classList.add('selected');
-            
-            // Show quick bet section
-            const quickBetSection = card.querySelector(`#quick-bet-${event.id}`);
-            const selectedOption = card.querySelector(`#selected-option-${event.id}`);
-            const selectedOdds = card.querySelector(`#selected-odds-${event.id}`);
-            
-            if (quickBetSection && selectedOption && selectedOdds) {
-                quickBetSection.style.display = 'block';
-                selectedOption.textContent = this.getAttribute('data-option-text');
-                selectedOdds.textContent = this.getAttribute('data-odds') + 'x';
-                
-                // Update potential winnings
-                updatePotentialWinnings(event.id);
-            }
-        });
-    });
-    
-    // Bet amount input handler
-    const betAmountInput = card.querySelector(`#bet-amount-${event.id}`);
-    if (betAmountInput) {
-        betAmountInput.addEventListener('input', () => updatePotentialWinnings(event.id));
-    }
-}
-
-function updatePotentialWinnings(eventId) {
-    const selectedOption = document.querySelector(`[data-event-id="${eventId}"].selected`);
-    const amountInput = document.getElementById(`bet-amount-${eventId}`);
-    const winDisplay = document.getElementById(`potential-win-${eventId}`);
-    
-    if (selectedOption && amountInput && winDisplay) {
-        const amount = parseFloat(amountInput.value) || 0;
-        const odds = parseFloat(selectedOption.getAttribute('data-odds')) || 1;
-        const potentialWin = Math.round(amount * odds);
-        
-        if (amount > 0) {
-            winDisplay.innerHTML = `Gewinn: <strong>+${potentialWin.toLocaleString()}</strong>`;
-        } else {
-            winDisplay.innerHTML = `Gewinn: <strong>-</strong>`;
-        }
-    }
-}
 
 async function placeBet(eventId) {
     if (!appState.currentUser) {
