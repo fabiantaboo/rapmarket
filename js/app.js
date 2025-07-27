@@ -10,7 +10,9 @@ const appState = {
     userBets: [],
     loading: false,
     authMode: 'login', // 'login' oder 'register'
-    currentBetFilter: 'all'
+    currentBetFilter: 'all',
+    currentCategory: 'all',
+    currentEventFilter: 'live'
 };
 
 // API Base URL - Verwende auth_v3.php mit verbessertem Login
@@ -265,6 +267,7 @@ function navigateToSection(sectionName, updateHistory = true) {
     switch(sectionName) {
         case 'events':
             loadEvents();
+            setupEventFilters();
             break;
         case 'leaderboard':
             loadLeaderboard();
@@ -296,22 +299,147 @@ async function loadEvents() {
     if (!container) return;
     
     setLoading(true);
+    container.innerHTML = '<div class="loading-placeholder"><div class="spinner-border text-primary" role="status"></div><p class="mt-2">Lade Events...</p></div>';
     
     try {
         const response = await apiRequest('events_v2.php?status=active');
         appState.events = response.events;
         
-        container.innerHTML = '';
+        updateEventCounts();
+        displayFilteredEvents();
         
-        response.events.forEach(event => {
+    } catch (error) {
+        container.innerHTML = '<div class="alert alert-danger">Fehler beim Laden der Events: ' + error.message + '</div>';
+    } finally {
+        setLoading(false);
+    }
+}
+
+function setupEventFilters() {
+    // Category filters
+    document.querySelectorAll('.category-item').forEach(item => {
+        item.addEventListener('click', function() {
+            // Remove active class from all items
+            document.querySelectorAll('.category-item').forEach(i => i.classList.remove('active'));
+            
+            // Add active class to clicked item
+            this.classList.add('active');
+            
+            // Update current category
+            appState.currentCategory = this.getAttribute('data-category');
+            
+            // Re-display events
+            displayFilteredEvents();
+            
+            console.log('Category changed to:', appState.currentCategory);
+        });
+    });
+    
+    // Event status filters
+    document.querySelectorAll('input[name="eventFilter"]').forEach(filter => {
+        filter.addEventListener('change', function() {
+            if (this.checked) {
+                appState.currentEventFilter = this.id.replace('filter', '').toLowerCase();
+                displayFilteredEvents();
+                
+                console.log('Event filter changed to:', appState.currentEventFilter);
+            }
+        });
+    });
+}
+
+function displayFilteredEvents() {
+    const container = document.getElementById('eventsContainer');
+    if (!container || !appState.events) return;
+    
+    let filteredEvents = [...appState.events];
+    
+    // Filter by category
+    if (appState.currentCategory !== 'all') {
+        filteredEvents = filteredEvents.filter(event => 
+            event.category === appState.currentCategory
+        );
+    }
+    
+    // Filter by status
+    if (appState.currentEventFilter !== 'all') {
+        filteredEvents = filteredEvents.filter(event => {
+            const now = new Date().getTime();
+            const startTime = new Date(event.start_date).getTime();
+            const endTime = new Date(event.end_date).getTime();
+            
+            switch (appState.currentEventFilter) {
+                case 'live':
+                    return event.status === 'active' && startTime <= now && endTime > now;
+                case 'upcoming':
+                    return event.status === 'active' && startTime > now;
+                default:
+                    return true;
+            }
+        });
+    }
+    
+    // Clear container
+    container.innerHTML = '';
+    
+    // Display filtered events
+    if (filteredEvents.length === 0) {
+        container.innerHTML = `
+            <div class="no-events-placeholder">
+                <div class="text-center text-muted">
+                    <i class="fas fa-search fa-3x mb-3"></i>
+                    <h4>Keine Events gefunden</h4>
+                    <p>Versuche einen anderen Filter oder eine andere Kategorie.</p>
+                </div>
+            </div>
+        `;
+    } else {
+        filteredEvents.forEach(event => {
             const eventCard = createEventCard(event);
             container.appendChild(eventCard);
         });
+    }
+    
+    // Update statistics
+    updateLiveStats(filteredEvents);
+}
+
+function updateEventCounts() {
+    const categories = ['all', 'battle', 'charts', 'streaming', 'tour', 'awards'];
+    
+    categories.forEach(category => {
+        const count = category === 'all' 
+            ? appState.events.length 
+            : appState.events.filter(event => event.category === category).length;
         
-    } catch (error) {
-        container.innerHTML = '<div class="col-12"><div class="alert alert-danger">Fehler beim Laden der Events: ' + error.message + '</div></div>';
-    } finally {
-        setLoading(false);
+        const countElement = document.getElementById(`count-${category}`);
+        if (countElement) {
+            countElement.textContent = count;
+        }
+    });
+}
+
+function updateLiveStats(events = null) {
+    const eventsToUse = events || appState.events;
+    
+    // Total events
+    const totalEventsElement = document.getElementById('totalEvents');
+    if (totalEventsElement) {
+        totalEventsElement.textContent = eventsToUse.length;
+    }
+    
+    // Total bets
+    const totalBets = eventsToUse.reduce((sum, event) => sum + (event.bet_count || 0), 0);
+    const totalBetsElement = document.getElementById('totalBets');
+    if (totalBetsElement) {
+        totalBetsElement.textContent = totalBets.toLocaleString();
+    }
+    
+    // Total volume
+    const totalVolume = eventsToUse.reduce((sum, event) => sum + (event.total_bets_amount || 0), 0);
+    const totalVolumeElement = document.getElementById('totalVolume');
+    if (totalVolumeElement) {
+        totalVolumeElement.textContent = `${(totalVolume / 1000).toFixed(1)}K`;
     }
 }
 

@@ -1467,6 +1467,23 @@ section#profile .text-muted {
     color: var(--text-secondary);
 }
 
+/* No Events Placeholder */
+.no-events-placeholder {
+    text-align: center;
+    padding: 4rem 2rem;
+    color: var(--text-secondary);
+}
+
+.no-events-placeholder h4 {
+    color: var(--text-color);
+    margin-bottom: 1rem;
+}
+
+.no-events-placeholder i {
+    color: var(--accent-color);
+    opacity: 0.5;
+}
+
 /* Footer */
 footer {
     background: var(--secondary-color) !important;
