@@ -211,15 +211,7 @@ function handlePlaceBet($input, $db, $userId) {
             sendErrorResponse('Nicht genügend Punkte');
         }
         
-        // Prüfe ob User bereits auf diese spezifische Option gesetzt hat
-        $existingBet = $db->fetchOne(
-            "SELECT * FROM bets WHERE user_id = :user_id AND event_id = :event_id AND option_id = :option_id",
-            ['user_id' => $userId, 'event_id' => $eventId, 'option_id' => $optionId]
-        );
-        
-        if ($existingBet) {
-            sendErrorResponse('Du hast bereits auf diese Option gesetzt');
-        }
+        // User kann beliebig oft auf dieselbe Option setzen
         
         // Berechne Gesamteinsatz des Users für dieses Event
         $totalUserBets = $db->fetchOne(
