@@ -166,6 +166,48 @@ body::before {
     transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
+/* Kompakte Event Cards */
+.event-card.compact {
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+    height: auto;
+    min-height: 400px;
+}
+
+.event-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+}
+
+.event-title-compact {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--accent-color);
+    line-height: 1.3;
+    flex: 1;
+}
+
+.event-meta-compact {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.meta-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+.meta-row i {
+    width: 12px;
+    text-align: center;
+}
+
 .event-card::before {
     content: '';
     position: absolute;
@@ -245,6 +287,31 @@ body::before {
     margin-bottom: 2rem;
 }
 
+/* Kompakte Bet Options */
+.bet-options-compact {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.bet-options-compact .bet-option {
+    padding: 1rem;
+    margin: 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    min-height: unset;
+}
+
+.bet-options-compact .bet-option-text {
+    font-size: 0.9rem;
+    margin-bottom: 0;
+}
+
+.bet-options-compact .bet-option-odds {
+    font-size: 1rem;
+}
+
 .bet-option {
     background: linear-gradient(135deg, rgba(255, 107, 53, 0.1), rgba(247, 147, 30, 0.1));
     border: 2px solid rgba(255, 107, 53, 0.3);
@@ -308,6 +375,56 @@ body::before {
     border-radius: var(--border-radius);
     padding: 1.5rem;
     border: 1px solid rgba(255, 107, 53, 0.2);
+}
+
+/* Kompakte Bet Input */
+.bet-input-compact {
+    background: rgba(255, 107, 53, 0.05);
+    border-radius: 10px;
+    padding: 1rem;
+    border: 1px solid rgba(255, 107, 53, 0.2);
+}
+
+.bet-amount-input-compact {
+    background: var(--dark-color) !important;
+    border: 1px solid rgba(255, 107, 53, 0.3) !important;
+    color: var(--text-color) !important;
+    font-size: 0.9rem !important;
+    padding: 0.5rem !important;
+}
+
+.bet-amount-input-compact:focus {
+    border-color: var(--accent-color) !important;
+    box-shadow: 0 0 10px rgba(255, 107, 53, 0.3) !important;
+}
+
+.bet-button-compact {
+    background: linear-gradient(135deg, var(--accent-color), var(--accent-secondary)) !important;
+    border: none !important;
+    border-radius: 8px !important;
+    padding: 0.6rem 1rem !important;
+    font-weight: 600 !important;
+    font-size: 0.9rem !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.5px !important;
+    transition: all 0.3s ease !important;
+}
+
+.bet-button-compact:hover {
+    transform: translateY(-2px) scale(1.02) !important;
+    box-shadow: 0 8px 20px rgba(255, 107, 53, 0.4) !important;
+}
+
+.potential-win-compact {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+.input-group-text {
+    background: rgba(255, 107, 53, 0.1) !important;
+    border: 1px solid rgba(255, 107, 53, 0.3) !important;
+    color: var(--text-color) !important;
+    font-size: 0.85rem;
 }
 
 .bet-amount-input {
@@ -530,6 +647,11 @@ body::before {
         padding: 1.5rem;
     }
     
+    .event-card.compact {
+        padding: 1rem;
+        min-height: 350px;
+    }
+    
     .bet-options {
         grid-template-columns: 1fr;
     }
@@ -541,6 +663,26 @@ body::before {
     .event-meta {
         flex-direction: column;
         gap: 0.5rem;
+    }
+    
+    .event-title-compact {
+        font-size: 1rem;
+    }
+    
+    .meta-row {
+        font-size: 0.8rem;
+    }
+}
+
+/* Mobile Events Grid */
+@media (max-width: 576px) {
+    #eventsContainer .col-md-6 {
+        max-width: 100%;
+        flex: 0 0 100%;
+    }
+    
+    .event-card.compact {
+        min-height: 320px;
     }
 }
 

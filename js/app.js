@@ -21,6 +21,7 @@ const AUTH_ENDPOINT = 'auth_v3.php'; // Verbesserte Version mit besserer Fehlerb
 document.addEventListener('DOMContentLoaded', function() {
     initializeApp();
     setupEventListeners();
+    setupRouting();
     checkUserSession();
 });
 
@@ -207,8 +208,32 @@ async function handleLogout() {
     }
 }
 
+// URL Routing
+function setupRouting() {
+    // Handle initial URL
+    handleRoute();
+    
+    // Handle browser back/forward
+    window.addEventListener('popstate', handleRoute);
+}
+
+function handleRoute() {
+    const hash = window.location.hash.slice(1) || 'home';
+    navigateToSection(hash, false);
+}
+
+function updateURL(sectionName) {
+    const newURL = sectionName === 'home' ? 
+        window.location.pathname : 
+        `${window.location.pathname}#${sectionName}`;
+    
+    if (window.location.href !== window.location.origin + newURL) {
+        history.pushState({ section: sectionName }, '', newURL);
+    }
+}
+
 // Navigation
-function navigateToSection(sectionName) {
+function navigateToSection(sectionName, updateHistory = true) {
     // Hide all sections
     document.querySelectorAll('.section-content, .hero-section').forEach(section => {
         section.classList.add('d-none');
@@ -228,6 +253,14 @@ function navigateToSection(sectionName) {
     
     appState.currentSection = sectionName;
     
+    // Update URL
+    if (updateHistory) {
+        updateURL(sectionName);
+    }
+    
+    // Update page title
+    updatePageTitle(sectionName);
+    
     // Load section specific data
     switch(sectionName) {
         case 'events':
@@ -243,6 +276,18 @@ function navigateToSection(sectionName) {
             loadProfile();
             break;
     }
+}
+
+function updatePageTitle(sectionName) {
+    const titles = {
+        'home': 'RapMarket.de - Deine Hip-Hop Community',
+        'events': 'Events - RapMarket.de',
+        'leaderboard': 'Rangliste - RapMarket.de',
+        'community': 'Community - RapMarket.de',
+        'profile': 'Mein Profil - RapMarket.de'
+    };
+    
+    document.title = titles[sectionName] || titles['home'];
 }
 
 // Events Functions
@@ -272,16 +317,24 @@ async function loadEvents() {
 
 function createEventCard(event) {
     const card = document.createElement('div');
-    card.className = 'col-12 mb-4';
+    card.className = 'col-md-6 col-lg-4 mb-3';
     
-    // Status Badge
+    // Status Badge - verbesserte Logik
     let statusBadge = '';
-    if (event.is_live) {
+    const now = new Date().getTime();
+    const startTime = new Date(event.start_date).getTime();
+    const endTime = new Date(event.end_date).getTime();
+    
+    if (event.status === 'active' && startTime <= now && endTime > now) {
         statusBadge = '<span class="status-badge status-live">🔴 LIVE</span>';
-    } else if (event.is_upcoming) {
-        statusBadge = '<span class="status-badge status-upcoming">⏰ Bald verfügbar</span>';
-    } else {
+    } else if (event.status === 'active' && startTime > now) {
+        statusBadge = '<span class="status-badge status-upcoming">⏰ Startet bald</span>';
+    } else if (event.status === 'active' && endTime <= now) {
         statusBadge = '<span class="status-badge status-ended">⏹ Beendet</span>';
+    } else if (event.status === 'active') {
+        statusBadge = '<span class="status-badge status-live">✅ Aktiv</span>';
+    } else {
+        statusBadge = '<span class="status-badge status-ended">⏹ Inaktiv</span>';
     }
     
     // Event Meta Items
@@ -313,50 +366,52 @@ function createEventCard(event) {
     ).join('');
     
     card.innerHTML = `
-        <div class="event-card">
-            <div class="d-flex justify-content-between align-items-start mb-3">
-                <div class="event-title">${escapeHtml(event.title)}</div>
+        <div class="event-card compact">
+            <div class="event-header mb-2">
+                <div class="event-title-compact">${escapeHtml(event.title)}</div>
                 ${statusBadge}
             </div>
             
-            <div class="event-description mb-3">${escapeHtml(event.description)}</div>
-            
-            <div class="event-meta mb-4">
-                ${metaItems.join('')}
+            <div class="event-meta-compact mb-3">
+                <div class="meta-row">
+                    <i class="fas fa-calendar-alt text-muted"></i>
+                    <span>${event.formatted_event_date || 'Datum folgt'}</span>
+                </div>
+                <div class="meta-row">
+                    <i class="fas fa-coins text-warning"></i>
+                    <span>${event.min_bet || 10}-${event.max_bet || 1000} Punkte</span>
+                </div>
             </div>
             
-            <div class="bet-options mb-4">
+            <div class="bet-options-compact mb-3">
                 ${optionsHtml}
             </div>
             
-            <div class="bet-input-section">
-                <div class="row align-items-end">
-                    <div class="col-md-4 mb-3 mb-md-0">
-                        <label class="form-label text-white fw-bold">Einsatz (Punkte)</label>
-                        <input type="number" 
-                               class="form-control bet-amount-input" 
-                               placeholder="Min. ${event.min_bet || 10}" 
-                               min="${event.min_bet || 10}" 
-                               max="${Math.min(event.max_bet || 1000, appState.userPoints)}" 
-                               id="bet-amount-${event.id}">
-                    </div>
-                    <div class="col-md-4 mb-3 mb-md-0">
-                        <div class="text-white fw-bold mb-2">Möglicher Gewinn</div>
-                        <div class="text-success fs-5 fw-bold" id="potential-win-${event.id}">-</div>
-                    </div>
-                    <div class="col-md-4">
-                        <button class="btn bet-button w-100" 
-                                onclick="placeBet(${event.id})" 
-                                ${!appState.currentUser ? 'disabled' : ''}
-                                id="bet-btn-${event.id}">
-                            <i class="fas fa-rocket me-2"></i>Wette platzieren
-                        </button>
-                    </div>
+            <div class="bet-input-compact">
+                <div class="input-group mb-2">
+                    <input type="number" 
+                           class="form-control bet-amount-input-compact" 
+                           placeholder="Einsatz" 
+                           min="${event.min_bet || 10}" 
+                           max="${Math.min(event.max_bet || 1000, appState.userPoints)}" 
+                           id="bet-amount-${event.id}">
+                    <span class="input-group-text">Punkte</span>
                 </div>
                 
+                <div class="potential-win-compact mb-2" id="potential-win-${event.id}">
+                    Möglicher Gewinn: <span class="text-success fw-bold">-</span>
+                </div>
+                
+                <button class="btn bet-button-compact w-100" 
+                        onclick="placeBet(${event.id})" 
+                        ${!appState.currentUser ? 'disabled' : ''}
+                        id="bet-btn-${event.id}">
+                    <i class="fas fa-rocket me-1"></i>Setzen
+                </button>
+                
                 ${!appState.currentUser ? 
-                    '<div class="text-center mt-3"><small class="text-warning">🔐 Login erforderlich zum Wetten</small></div>' : 
-                    '<div class="text-center mt-2"><small class="text-secondary">Verfügbare Punkte: <span class="text-success fw-bold">' + appState.userPoints.toLocaleString() + '</span></small></div>'
+                    '<div class="text-center mt-2"><small class="text-warning">🔐 Login erforderlich</small></div>' : 
+                    '<div class="text-center mt-1"><small class="text-muted">Verfügbar: <span class="text-success">' + appState.userPoints.toLocaleString() + '</span></small></div>'
                 }
             </div>
         </div>
@@ -406,11 +461,9 @@ function updatePotentialWinnings(eventId) {
         const potentialWin = Math.round(amount * odds);
         
         if (amount > 0) {
-            winDisplay.textContent = `+${potentialWin.toLocaleString()} Punkte`;
-            winDisplay.className = 'text-success fs-5 fw-bold';
+            winDisplay.innerHTML = `Möglicher Gewinn: <span class="text-success fw-bold">+${potentialWin.toLocaleString()}</span>`;
         } else {
-            winDisplay.textContent = '-';
-            winDisplay.className = 'text-muted fs-5';
+            winDisplay.innerHTML = `Möglicher Gewinn: <span class="text-success fw-bold">-</span>`;
         }
     }
 }
