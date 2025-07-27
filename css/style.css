@@ -809,6 +809,107 @@ body::before {
     color: white !important;
 }
 
+/* Starke Überschreibungen für alle Profile-Texte */
+#profile * {
+    color: var(--text-color) !important;
+}
+
+#profile .text-success {
+    color: var(--success-color) !important;
+}
+
+#profile .text-danger {
+    color: var(--danger-color) !important;
+}
+
+#profile .text-warning {
+    color: var(--warning-color) !important;
+}
+
+#profile .text-info {
+    color: #17a2b8 !important;
+}
+
+#profile .text-muted {
+    color: var(--text-secondary) !important;
+}
+
+#profile .btn {
+    color: white !important;
+}
+
+/* Spezifische Fixes für Profile Card */
+.profile-card * {
+    color: var(--text-color) !important;
+}
+
+.profile-card .text-muted {
+    color: var(--text-secondary) !important;
+}
+
+/* Spezifische Fixes für Statistik Boxen */
+.stat-box * {
+    color: inherit !important;
+}
+
+.stat-number.text-success {
+    color: var(--success-color) !important;
+}
+
+.stat-number.text-danger {
+    color: var(--danger-color) !important;
+}
+
+.stat-number.text-warning {
+    color: var(--warning-color) !important;
+}
+
+.stat-number.text-info {
+    color: #17a2b8 !important;
+}
+
+/* Bet Cards Text Fixes */
+.bet-card * {
+    color: var(--text-color) !important;
+}
+
+.bet-card .text-success {
+    color: var(--success-color) !important;
+}
+
+.bet-card .text-danger {
+    color: var(--danger-color) !important;
+}
+
+.bet-card .text-warning {
+    color: var(--warning-color) !important;
+}
+
+.bet-card .text-muted {
+    color: var(--text-secondary) !important;
+}
+
+/* Bootstrap Override - Höchste Priorität */
+section#profile .text-dark,
+section#profile .text-body,
+section#profile .text-black-50,
+section#profile p,
+section#profile span,
+section#profile div:not(.badge):not(.btn) {
+    color: var(--text-color) !important;
+}
+
+section#profile .text-muted {
+    color: var(--text-secondary) !important;
+}
+
+/* Force alle Texte im Profil hell */
+#profile .card-body p,
+#profile .card-body span,
+#profile .card-body div {
+    color: var(--text-color) !important;
+}
+
 /* Responsive Profile Styles */
 @media (max-width: 768px) {
     .profile-stats {
