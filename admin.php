@@ -101,15 +101,11 @@ $users = $db->fetchAll("
     LIMIT 50
 ");
 
-// Hole Kategorien
-$categories = [
-    'battle' => 'Rap Battles',
-    'charts' => 'Charts', 
-    'streaming' => 'Streaming',
-    'tour' => 'Tours & Konzerte',
-    'awards' => 'Awards',
-    'general' => 'Allgemein'
-];
+// Hole Kategorien aus Datei
+$categories = [];
+if (file_exists('data/categories.json')) {
+    $categories = json_decode(file_get_contents('data/categories.json'), true) ?? [];
+}
 
 // Hole Statistiken
 $stats = [
@@ -427,16 +423,10 @@ function deleteCategory($categoryKey) {
             return ['success' => false, 'message' => 'Kategorie-Schlüssel erforderlich'];
         }
         
-        // Standard-Kategorien nicht löschbar
-        $defaultCategories = ['battle', 'charts', 'streaming', 'tour', 'awards', 'general'];
-        if (in_array($categoryKey, $defaultCategories)) {
-            return ['success' => false, 'message' => 'Standard-Kategorien können nicht gelöscht werden'];
-        }
-        
         $categoriesFile = 'data/categories.json';
         
         if (!file_exists($categoriesFile)) {
-            return ['success' => false, 'message' => 'Keine benutzerdefinierten Kategorien gefunden'];
+            return ['success' => false, 'message' => 'Keine Kategorien gefunden'];
         }
         
         $existingCategories = json_decode(file_get_contents($categoriesFile), true) ?? [];
@@ -472,28 +462,180 @@ function deleteCategory($categoryKey) {
     <link rel="stylesheet" href="css/style.css">
     
     <style>
+        /* Admin Panel im RapMarket Style */
         .admin-header {
-            background: linear-gradient(135deg, #2c3e50, #3498db);
-            color: white;
-            padding: 20px 0;
+            background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
+            color: var(--text-color);
+            padding: 30px 0;
             margin-bottom: 30px;
+            box-shadow: var(--card-shadow);
         }
         
-        .event-card {
-            border: 1px solid #ddd;
-            border-radius: 8px;
+        .nav-tabs {
+            border-bottom: 2px solid var(--accent-color);
+            background: var(--card-bg);
             padding: 15px;
-            margin-bottom: 15px;
+            border-radius: var(--border-radius) var(--border-radius) 0 0;
+        }
+        
+        .nav-tabs .nav-link {
+            color: var(--text-secondary);
+            border: none;
+            border-radius: var(--border-radius);
+            margin-right: 10px;
             transition: all 0.3s ease;
         }
         
+        .nav-tabs .nav-link:hover {
+            color: var(--accent-color);
+            background: rgba(255, 107, 53, 0.1);
+        }
+        
+        .nav-tabs .nav-link.active {
+            color: var(--text-color);
+            background: var(--accent-color);
+            box-shadow: var(--glow-effect);
+        }
+        
+        .tab-content {
+            background: var(--card-bg);
+            border-radius: 0 0 var(--border-radius) var(--border-radius);
+            padding: 25px;
+        }
+        
+        .event-card {
+            background: var(--secondary-color);
+            border: 1px solid rgba(255, 107, 53, 0.2);
+            border-radius: var(--border-radius);
+            padding: 20px;
+            margin-bottom: 20px;
+            transition: all 0.3s ease;
+            box-shadow: var(--card-shadow);
+        }
+        
         .event-card:hover {
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            box-shadow: var(--card-shadow-hover);
+            transform: translateY(-2px);
         }
         
         .event-card.inactive {
             opacity: 0.6;
-            background-color: #f8f9fa;
+            background: var(--dark-color);
+        }
+        
+        .sidebar {
+            background: var(--card-bg);
+            border-radius: var(--border-radius);
+            padding: 25px;
+            height: fit-content;
+            box-shadow: var(--card-shadow);
+            border: 1px solid rgba(255, 107, 53, 0.1);
+        }
+        
+        .sidebar .form-control,
+        .sidebar .form-select {
+            background-color: var(--secondary-color) !important;
+            color: var(--text-color) !important;
+            border: 1px solid rgba(255, 107, 53, 0.3) !important;
+            border-radius: 8px;
+        }
+        
+        .sidebar .form-control:focus,
+        .sidebar .form-select:focus {
+            background-color: var(--secondary-color) !important;
+            color: var(--text-color) !important;
+            border-color: var(--accent-color) !important;
+            box-shadow: var(--glow-effect) !important;
+        }
+        
+        .sidebar label {
+            color: var(--text-color) !important;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        
+        .stats-card {
+            background: linear-gradient(135deg, var(--card-bg), var(--secondary-color));
+            border-radius: var(--border-radius);
+            padding: 25px;
+            text-align: center;
+            box-shadow: var(--card-shadow);
+            border: 1px solid rgba(255, 107, 53, 0.2);
+            transition: all 0.3s ease;
+        }
+        
+        .stats-card:hover {
+            box-shadow: var(--card-shadow-hover);
+        }
+        
+        .stats-number {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: var(--accent-color);
+            text-shadow: var(--glow-effect);
+        }
+        
+        .card {
+            background: var(--card-bg);
+            border: 1px solid rgba(255, 107, 53, 0.2);
+            border-radius: var(--border-radius);
+            box-shadow: var(--card-shadow);
+        }
+        
+        .card-header {
+            background: linear-gradient(135deg, var(--secondary-color), var(--accent-color));
+            color: var(--text-color);
+            border-bottom: 1px solid rgba(255, 107, 53, 0.3);
+            border-radius: var(--border-radius) var(--border-radius) 0 0 !important;
+        }
+        
+        .table {
+            color: var(--text-color);
+        }
+        
+        .table thead th {
+            background: var(--secondary-color);
+            border-color: rgba(255, 107, 53, 0.3);
+            color: var(--accent-color);
+        }
+        
+        .table td {
+            border-color: rgba(255, 107, 53, 0.1);
+        }
+        
+        .list-group-item {
+            background: var(--secondary-color);
+            border: 1px solid rgba(255, 107, 53, 0.2);
+            color: var(--text-color);
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent-color), var(--accent-secondary));
+            border: none;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-primary:hover {
+            background: linear-gradient(135deg, var(--accent-secondary), var(--accent-color));
+            box-shadow: var(--glow-effect);
+            transform: translateY(-1px);
+        }
+        
+        .alert {
+            border-radius: var(--border-radius);
+            border: none;
+        }
+        
+        .modal-content {
+            background: var(--card-bg);
+            border: 1px solid rgba(255, 107, 53, 0.3);
+            border-radius: var(--border-radius);
+        }
+        
+        .modal-header {
+            background: linear-gradient(135deg, var(--secondary-color), var(--accent-color));
+            border-bottom: 1px solid rgba(255, 107, 53, 0.3);
         }
         
         .option-input {
@@ -501,48 +643,6 @@ function deleteCategory($categoryKey) {
             gap: 10px;
             margin-bottom: 10px;
             align-items: center;
-        }
-        
-        .stats-card {
-            background: white;
-            border-radius: 10px;
-            padding: 20px;
-            text-align: center;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            border-left: 4px solid #3498db;
-        }
-        
-        .stats-number {
-            font-size: 2rem;
-            font-weight: bold;
-            color: #2c3e50;
-        }
-        
-        .sidebar {
-            background: #f8f9fa;
-            border-radius: 10px;
-            padding: 20px;
-            height: fit-content;
-        }
-        
-        .sidebar .form-control,
-        .sidebar .form-select {
-            background-color: white !important;
-            color: #212529 !important;
-            border: 1px solid #ced4da !important;
-        }
-        
-        .sidebar .form-control:focus,
-        .sidebar .form-select:focus {
-            background-color: white !important;
-            color: #212529 !important;
-            border-color: #86b7fe !important;
-            box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25) !important;
-        }
-        
-        .sidebar label {
-            color: #212529 !important;
-            font-weight: 500;
         }
     </style>
 </head>
@@ -633,12 +733,13 @@ function deleteCategory($categoryKey) {
                         <div class="mb-3">
                             <label class="form-label">Kategorie</label>
                             <select class="form-control" name="category" id="categorySelect">
-                                <option value="battle">Rap Battle</option>
-                                <option value="charts">Charts</option>
-                                <option value="streaming">Streaming</option>
-                                <option value="tour">Tour & Konzerte</option>
-                                <option value="awards">Awards</option>
-                                <option value="general">Allgemein</option>
+                                <?php if (empty($categories)): ?>
+                                    <option value="">Keine Kategorien verfügbar - erstelle erst Kategorien</option>
+                                <?php else: ?>
+                                    <?php foreach ($categories as $key => $name): ?>
+                                        <option value="<?= htmlspecialchars($key) ?>"><?= htmlspecialchars($name) ?></option>
+                                    <?php endforeach; ?>
+                                <?php endif; ?>
                             </select>
                         </div>
                         
@@ -908,24 +1009,20 @@ function deleteCategory($categoryKey) {
                                 <h5><i class="fas fa-list me-2"></i>Verfügbare Kategorien</h5>
                             </div>
                             <div class="card-body">
-                                <?php
-                                // Lade benutzerdefinierte Kategorien
-                                $customCategories = [];
-                                if (file_exists('data/categories.json')) {
-                                    $customCategories = json_decode(file_get_contents('data/categories.json'), true) ?? [];
-                                }
-                                $allCategories = array_merge($categories, $customCategories);
-                                ?>
-                                
                                 <div class="list-group">
-                                    <?php foreach ($allCategories as $key => $name): ?>
-                                        <div class="list-group-item d-flex justify-content-between align-items-center">
-                                            <div>
-                                                <strong><?= htmlspecialchars($name) ?></strong>
-                                                <br><small class="text-muted"><?= htmlspecialchars($key) ?></small>
-                                            </div>
-                                            <div>
-                                                <?php if (!in_array($key, ['battle', 'charts', 'streaming', 'tour', 'awards', 'general'])): ?>
+                                    <?php if (empty($categories)): ?>
+                                        <div class="list-group-item text-center text-muted">
+                                            <i class="fas fa-info-circle me-2"></i>
+                                            Noch keine Kategorien erstellt
+                                        </div>
+                                    <?php else: ?>
+                                        <?php foreach ($categories as $key => $name): ?>
+                                            <div class="list-group-item d-flex justify-content-between align-items-center">
+                                                <div>
+                                                    <strong><?= htmlspecialchars($name) ?></strong>
+                                                    <br><small class="text-muted"><?= htmlspecialchars($key) ?></small>
+                                                </div>
+                                                <div>
                                                     <form method="POST" class="d-inline" 
                                                           onsubmit="return confirm('Kategorie wirklich löschen?')">
                                                         <input type="hidden" name="action" value="delete_category">
@@ -934,12 +1031,10 @@ function deleteCategory($categoryKey) {
                                                             <i class="fas fa-trash"></i>
                                                         </button>
                                                     </form>
-                                                <?php else: ?>
-                                                    <span class="badge bg-secondary">Standard</span>
-                                                <?php endif; ?>
+                                                </div>
                                             </div>
-                                        </div>
-                                    <?php endforeach; ?>
+                                        <?php endforeach; ?>
+                                    <?php endif; ?>
                                 </div>
                             </div>
                         </div>
