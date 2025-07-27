@@ -9,7 +9,8 @@ const appState = {
     leaderboard: [],
     userBets: [],
     loading: false,
-    authMode: 'login' // 'login' oder 'register'
+    authMode: 'login', // 'login' oder 'register'
+    currentBetFilter: 'all'
 };
 
 // API Base URL - Verwende auth_v3.php mit verbessertem Login
@@ -237,6 +238,9 @@ function navigateToSection(sectionName) {
             break;
         case 'community':
             loadCommunity();
+            break;
+        case 'profile':
+            loadProfile();
             break;
     }
 }
@@ -574,6 +578,8 @@ function loadCommunity() {
 // UI Helper Functions
 function updateUserDisplay() {
     const loginLink = document.querySelector('[data-bs-target="#loginModal"]');
+    const profileNav = document.querySelector('[data-section="profile"]');
+    
     if (appState.currentUser && loginLink) {
         loginLink.innerHTML = `<i class="fas fa-user me-1"></i>${escapeHtml(appState.currentUser.username)}`;
         loginLink.setAttribute('href', '#');
@@ -583,11 +589,21 @@ function updateUserDisplay() {
             e.preventDefault();
             handleLogout();
         };
+        
+        // Zeige Profil-Navigation
+        if (profileNav) {
+            profileNav.style.display = 'block';
+        }
     } else if (loginLink) {
         loginLink.innerHTML = '<i class="fas fa-user me-1"></i>Login';
         loginLink.setAttribute('data-bs-toggle', 'modal');
         loginLink.setAttribute('data-bs-target', '#loginModal');
         loginLink.onclick = null;
+        
+        // Verstecke Profil-Navigation
+        if (profileNav) {
+            profileNav.style.display = 'none';
+        }
     }
     updatePointsDisplay();
 }
@@ -705,6 +721,209 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
+// Profile Functions
+async function loadProfile() {
+    if (!appState.currentUser) {
+        showAlert('🔐 Bitte logge dich ein, um dein Profil zu sehen!', 'warning');
+        navigateToSection('home');
+        return;
+    }
+    
+    updateProfileDisplay();
+    loadUserBets();
+    loadUserStats();
+    setupBetFilters();
+}
+
+function updateProfileDisplay() {
+    const user = appState.currentUser;
+    if (!user) return;
+    
+    document.getElementById('profileUsername').textContent = user.username;
+    document.getElementById('profilePoints').textContent = user.points.toLocaleString();
+    
+    // Mitglied seit
+    if (user.created_at) {
+        const memberSince = new Date(user.created_at).toLocaleDateString('de-DE', {
+            year: 'numeric',
+            month: 'long'
+        });
+        document.getElementById('profileMemberSince').textContent = `Mitglied seit ${memberSince}`;
+    }
+}
+
+async function loadUserStats() {
+    try {
+        const response = await apiRequest('auth_v3.php', {
+            method: 'POST',
+            body: { action: 'get_user_stats' }
+        });
+        
+        if (response.stats) {
+            const stats = response.stats;
+            document.getElementById('profileTotalBets').textContent = stats.total_bets || 0;
+            document.getElementById('profileWins').textContent = stats.wins || 0;
+            document.getElementById('profileLosses').textContent = stats.losses || 0;
+            document.getElementById('profilePending').textContent = stats.pending || 0;
+            document.getElementById('profileWinRate').textContent = `${stats.win_rate || 0}%`;
+            document.getElementById('profileRank').textContent = stats.rank || '-';
+        }
+    } catch (error) {
+        console.error('Failed to load user stats:', error);
+    }
+}
+
+async function loadUserBets() {
+    const container = document.getElementById('myBetsContainer');
+    if (!container) return;
+    
+    try {
+        const response = await apiRequest('events_v2.php', {
+            method: 'POST',
+            body: { action: 'get_user_bets' }
+        });
+        
+        appState.userBets = response.bets || [];
+        displayUserBets();
+        
+    } catch (error) {
+        container.innerHTML = `
+            <div class="text-center text-danger">
+                <i class="fas fa-exclamation-circle fa-3x mb-3"></i>
+                <p>Fehler beim Laden deiner Wetten: ${error.message}</p>
+            </div>
+        `;
+    }
+}
+
+function displayUserBets() {
+    const container = document.getElementById('myBetsContainer');
+    if (!container) return;
+    
+    let filteredBets = appState.userBets;
+    
+    // Filter anwenden
+    if (appState.currentBetFilter !== 'all') {
+        filteredBets = appState.userBets.filter(bet => {
+            switch (appState.currentBetFilter) {
+                case 'pending': return bet.status === 'pending';
+                case 'won': return bet.status === 'won';
+                case 'lost': return bet.status === 'lost';
+                default: return true;
+            }
+        });
+    }
+    
+    if (filteredBets.length === 0) {
+        container.innerHTML = `
+            <div class="text-center text-muted">
+                <i class="fas fa-ticket-alt fa-3x mb-3"></i>
+                <p>Keine Wetten gefunden</p>
+                <small>Gehe zu den Events und platziere deine erste Wette!</small>
+            </div>
+        `;
+        return;
+    }
+    
+    container.innerHTML = filteredBets.map(bet => createBetCard(bet)).join('');
+}
+
+function createBetCard(bet) {
+    let statusClass = '';
+    let statusIcon = '';
+    let statusText = '';
+    
+    switch (bet.status) {
+        case 'pending':
+            statusClass = 'warning';
+            statusIcon = 'clock';
+            statusText = 'Offen';
+            break;
+        case 'won':
+            statusClass = 'success';
+            statusIcon = 'check-circle';
+            statusText = 'Gewonnen';
+            break;
+        case 'lost':
+            statusClass = 'danger';
+            statusIcon = 'times-circle';
+            statusText = 'Verloren';
+            break;
+    }
+    
+    const formattedDate = new Date(bet.created_at).toLocaleDateString('de-DE', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+    
+    const potentialWin = Math.round(bet.amount * bet.odds);
+    const actualWin = bet.status === 'won' ? potentialWin : 0;
+    
+    return `
+        <div class="bet-card mb-3">
+            <div class="d-flex justify-content-between align-items-start mb-3">
+                <div class="bet-event-title">${escapeHtml(bet.event_title)}</div>
+                <span class="badge bg-${statusClass}">
+                    <i class="fas fa-${statusIcon} me-1"></i>${statusText}
+                </span>
+            </div>
+            
+            <div class="bet-details">
+                <div class="row">
+                    <div class="col-md-8">
+                        <div class="bet-option-chosen mb-2">
+                            <strong>Deine Wahl:</strong> ${escapeHtml(bet.option_text)}
+                        </div>
+                        <div class="bet-meta">
+                            <span class="me-3">
+                                <i class="fas fa-coins text-warning me-1"></i>
+                                Einsatz: <strong>${bet.amount.toLocaleString()} Punkte</strong>
+                            </span>
+                            <span class="me-3">
+                                <i class="fas fa-chart-line text-info me-1"></i>
+                                Quote: <strong>${bet.odds}x</strong>
+                            </span>
+                            <span>
+                                <i class="fas fa-calendar text-muted me-1"></i>
+                                ${formattedDate}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <div class="bet-payout">
+                            ${bet.status === 'pending' ? 
+                                `<div class="text-muted">Möglicher Gewinn</div>
+                                 <div class="text-warning fs-5 fw-bold">+${potentialWin.toLocaleString()}</div>` :
+                                bet.status === 'won' ?
+                                `<div class="text-success">Gewinn erhalten</div>
+                                 <div class="text-success fs-5 fw-bold">+${actualWin.toLocaleString()}</div>` :
+                                `<div class="text-danger">Verlust</div>
+                                 <div class="text-danger fs-5 fw-bold">-${bet.amount.toLocaleString()}</div>`
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function setupBetFilters() {
+    const filterButtons = document.querySelectorAll('input[name="betFilter"]');
+    filterButtons.forEach(button => {
+        button.addEventListener('change', function() {
+            if (this.checked) {
+                appState.currentBetFilter = this.id.replace('filter', '').toLowerCase();
+                displayUserBets();
+            }
+        });
+    });
+}
+
+
 // Global functions for HTML onclick attributes
 window.placeBet = placeBet;
 window.handleLogin = handleLogin;
@@ -713,3 +932,4 @@ window.login = handleLogin; // Backward compatibility
 window.register = handleRegister; // Backward compatibility
 window.toggleAuthMode = toggleAuthMode;
 window.handleAuth = handleAuth;
+window.loadProfile = loadProfile;

@@ -38,6 +38,9 @@
                     <li class="nav-item">
                         <a class="nav-link" href="#" data-section="community">Community</a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" data-section="profile">Mein Profil</a>
+                    </li>
                 </ul>
                 <div class="navbar-nav">
                     <div class="nav-item">
@@ -149,6 +152,107 @@
                         </div>
                         <div class="card-body" id="onlineUsers">
                             <!-- Online User werden hier angezeigt -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Profile Section -->
+    <section id="profile" class="section-content d-none">
+        <div class="container">
+            <h2 class="text-center mb-5">Mein Profil</h2>
+            
+            <!-- Profil-Übersicht -->
+            <div class="row mb-5">
+                <div class="col-md-4">
+                    <div class="card profile-card">
+                        <div class="card-body text-center">
+                            <div class="profile-avatar mb-3">
+                                <i class="fas fa-user-circle fa-5x text-primary"></i>
+                            </div>
+                            <h4 id="profileUsername">-</h4>
+                            <p class="text-muted" id="profileMemberSince">Mitglied seit -</p>
+                            <div class="profile-stats">
+                                <div class="stat-item">
+                                    <div class="stat-value" id="profilePoints">0</div>
+                                    <div class="stat-label">Punkte</div>
+                                </div>
+                                <div class="stat-item">
+                                    <div class="stat-value" id="profileTotalBets">0</div>
+                                    <div class="stat-label">Wetten</div>
+                                </div>
+                                <div class="stat-item">
+                                    <div class="stat-value" id="profileWinRate">0%</div>
+                                    <div class="stat-label">Gewinnrate</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-8">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5><i class="fas fa-chart-line me-2"></i>Statistiken</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-6 col-md-3 mb-3">
+                                    <div class="stat-box">
+                                        <div class="stat-number text-success" id="profileWins">0</div>
+                                        <div class="stat-text">Gewonnen</div>
+                                    </div>
+                                </div>
+                                <div class="col-6 col-md-3 mb-3">
+                                    <div class="stat-box">
+                                        <div class="stat-number text-danger" id="profileLosses">0</div>
+                                        <div class="stat-text">Verloren</div>
+                                    </div>
+                                </div>
+                                <div class="col-6 col-md-3 mb-3">
+                                    <div class="stat-box">
+                                        <div class="stat-number text-warning" id="profilePending">0</div>
+                                        <div class="stat-text">Offen</div>
+                                    </div>
+                                </div>
+                                <div class="col-6 col-md-3 mb-3">
+                                    <div class="stat-box">
+                                        <div class="stat-number text-info" id="profileRank">-</div>
+                                        <div class="stat-text">Rang</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Meine Wetten -->
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5><i class="fas fa-ticket-alt me-2"></i>Meine Wetten</h5>
+                    <div class="btn-group" role="group">
+                        <input type="radio" class="btn-check" name="betFilter" id="filterAll" checked>
+                        <label class="btn btn-outline-primary btn-sm" for="filterAll">Alle</label>
+                        
+                        <input type="radio" class="btn-check" name="betFilter" id="filterPending">
+                        <label class="btn btn-outline-warning btn-sm" for="filterPending">Offen</label>
+                        
+                        <input type="radio" class="btn-check" name="betFilter" id="filterWon">
+                        <label class="btn btn-outline-success btn-sm" for="filterWon">Gewonnen</label>
+                        
+                        <input type="radio" class="btn-check" name="betFilter" id="filterLost">
+                        <label class="btn btn-outline-danger btn-sm" for="filterLost">Verloren</label>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div id="myBetsContainer">
+                        <!-- Wetten werden hier dynamisch geladen -->
+                        <div class="text-center text-muted">
+                            <i class="fas fa-spinner fa-spin fa-3x mb-3"></i>
+                            <p>Lade deine Wetten...</p>
                         </div>
                     </div>
                 </div>
