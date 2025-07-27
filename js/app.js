@@ -564,7 +564,6 @@ function createEventCard(event) {
                     </span>
                     <button class="btn-place-bet" 
                             onclick="placeBet(${event.id})" 
-                            ${!appState.currentUser ? 'disabled' : ''}
                             id="bet-btn-${event.id}">
                         Setzen
                     </button>
